@@ -9,38 +9,20 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-    - uses: actions/checkout@v2
-
-    - name: test run
-      env:
-        source_repo: "git://git.savannah.gnu.org/nano.git"
-        source_branch: "*"
-        destination_branch: "*"
-        github_token: ${{ secrets.REPOPAT }}
-      run: |
-        echo matrix secret: ${{ secrets.REPOPAT }}
-        echo SECRET: $github_token
-        echo REPO: $source_repo
-        echo source branch: $source_branch
-        echo destination branch: $destination_branch
-
   repo-sync:
     runs-on: ubuntu-latest
     steps:
+
     - uses: actions/checkout@v2
       with:
         persist-credentials: false
 
     - name: GitHub Repo Sync
       uses: repo-sync/github-sync@v2
-      # uses: repo-sync/github-sync@v2.3.0
       with:
-        # sync_tags: "true"
         source_repo: "git://git.savannah.gnu.org/nano.git"
-        source_branch: "*"
-        destination_branch: "*"
+        source_branch: "origin/master"
+        destination_branch: "master"
         github_token: ${{ secrets.REPOPAT }}
+                # sync_tags: "true"
         
