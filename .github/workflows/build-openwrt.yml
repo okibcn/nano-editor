@@ -24,5 +24,4 @@ jobs:
         source_repo: "git://git.savannah.gnu.org/nano.git"
         source_branch: *
         destination_branch: *
-        github_token: ${{ secrets.PAT }}on: workflow_dispatch
-
+        github_token: ${{ secrets.REPOPAT }}
