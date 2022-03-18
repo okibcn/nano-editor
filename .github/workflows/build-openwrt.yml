@@ -21,8 +21,8 @@ jobs:
       uses: repo-sync/github-sync@v2
       with:
         source_repo: "git://git.savannah.gnu.org/nano.git"
-        source_branch: "origin/master"
-        destination_branch: "origin/master"
+        source_branch: "*"
+        destination_branch: "*"
         github_token: ${{ secrets.GITHUB_TOKEN }}
         sync_tags: "true"
         #  REPOPAT 
