@@ -16,6 +16,15 @@ jobs:
       with:
         persist-credentials: false
     # - name: repo-sync
+
+    - name: test
+      with:
+        source_repo: "git://git.savannah.gnu.org/nano.git"
+        source_branch: "*"
+        destination_branch: "*"
+        github_token: ${{ secrets.REPOPAT }}
+        run: echo ${{ secrets.REPOPAT }}
+
     - name: GitHub Repo Sync
       uses: repo-sync/github-sync@v2
       # uses: repo-sync/github-sync@v2.3.0
@@ -25,3 +34,4 @@ jobs:
         source_branch: "*"
         destination_branch: "*"
         github_token: ${{ secrets.REPOPAT }}
+        
