@@ -1,85 +1,28 @@
-# Copyright (c) 2021 mientz
-# This is free software, licensed under the GNU General Public License v3.0
-# See /LICENSE for more information.
-# https://github.com/mientz/imagebuilder-actions
-# Description: Build OpenWrt using GitHub Actions
+# File: .github/workflows/repo-sync.yml
+# To push to the destination repo use https://github.com/marketplace/actions/git-sync-action
 
-name: Build Image
+name: SYNC REPO
 
-on: workflow_dispatch
-
-env:
-  # Define your image build parameters
-  RELEASE: 21.02.0-rc1
-  TARGET: sunxi
-  ARCH: cortexa7
-  PROFILE: xunlong_orangepi-zero
-  EXTRAFILES: false
-  PACKAGES: "base-files ca-bundle dropbear fstools libc libgcc libustream-wolfssl logd luci luci-app-firewall luci-base luci-lib-ip luci-lib-nixio luci-mod-admin-full luci-proto-3g luci-proto-ppp luci-theme-bootstrap mtd netifd opkg uci uclient-fetch urandom-seed urngd busybox ppp ppp-mod-pppoe procd rpcd swconfig uboot-envtools partx-utils mkf2fs e2fsprogs dnsmasq firewall ip6tables iptables kmod-ipt-offload kmod-rtc-sunxi kmod-usb-core kmod-usb-net kmod-usb-net-cdc-ether kmod-usb-net-cdc-mbim kmod-usb-net-cdc-ncm kmod-usb-net-huawei-cdc-ncm kmod-usb-net-qmi-wwan kmod-usb-net-rndis kmod-usb-net-sierrawireless kmod-usb-ohci kmod-usb-serial kmod-usb-serial-option kmod-usb-serial-qualcomm kmod-usb-serial-sierrawireless kmod-usb-serial-wwan kmod-usb-uhci kmod-usb-wdm kmod-usb2 odhcp6c odhcpd-ipv6only ppp ppp-mod-pppoe usb-modeswitch"
+on:
+  # schedule:
+  # - cron:  "0 * * * *"
+  workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ubuntu-18.04
-    
+  repo-sync:
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@main
+    - uses: actions/checkout@v2
+      with:
+        persist-credentials: false
+    # - name: repo-sync
+    #   uses: repo-sync/github-sync@v2
+    - name: GitHub Repo Sync
+      uses: repo-sync/github-sync@v2.3.0
+      with:
+        sync_tags: "true"
+        source_repo: "git://git.savannah.gnu.org/nano.git"
+        source_branch: *
+        destination_branch: *
+        github_token: ${{ secrets.PAT }}on: workflow_dispatch
 
-      - name: Initialization Environment
-        env:
-          DEBIAN_FRONTEND: noninteractive
-        run: |
-          sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc
-          sudo -E apt-get -qq update
-          sudo -E apt-get -qq install curl build-essential ccache ecj fastjar file g++ gawk gettext git java-propose-classpath libelf-dev libncurses5-dev libncursesw5-dev libssl-dev python python2.7-dev python3 unzip wget python3-distutils python3-setuptools rsync subversion swig time xsltproc zlib1g-dev
-          sudo -E apt-get -qq autoremove --purge
-          sudo -E apt-get -qq clean
-      
-      - name: Download Image Builder
-        run: |
-          wget https://downloads.openwrt.org/releases/$RELEASE/targets/$TARGET/$ARCH/openwrt-imagebuilder-$RELEASE-$TARGET-$ARCH.Linux-x86_64.tar.xz
-      
-      - name: Extract The Image Builder
-        run: |
-          ls -la
-          tar xJf openwrt*.tar.xz --strip-components=1
-      
-      - name: Build Image
-        id: image
-        if: env.EXTRAFILES == 'false'
-        run: |
-          make image PROFILE=$PROFILE PACKAGES="$PACKAGES" EXTRA_IMAGE_NAME="$(date +"%Y.%m.%d-%H%M")"
-          echo "::set-output name=status::success"
-      
-      - name: Build Image With Extra Files
-        id: imageExtra
-        if: env.EXTRAFILES == 'true'
-        run: |
-          make image PROFILE=$PROFILE PACKAGES="$PACKAGES" FILES=files/ EXTRA_IMAGE_NAME="$(date +"%Y.%m.%d-%H%M")"
-          echo "::set-output name=status::success"
-
-      # - name: Organize The Image
-      #   uses: actions/upload-artifact@v2
-      #   with:
-      #     name: OpenWrt_images
-      #     path: bin/targets/${{ env.TARGET }}/${{ env.ARCH }}/
-
-      - name: Generate release tag
-        id: tag
-        run: |
-          echo "::set-output name=release_tag::$(date +"%Y.%m.%d-%H%M")"
-          echo "::set-output name=status::success"
-      
-      - name: Release the image
-        uses: softprops/action-gh-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: OpenWrt-${{ env.TARGET }}-${{ env.RELEASE }}-${{ steps.tag.outputs.release_tag }}
-          files: bin/targets/${{ env.TARGET }}/${{ env.ARCH }}/*
-          body: |
-            Release: `${{ env.RELEASE }}`
-            Target: `${{ env.TARGET }}`
-            Arch: `${{ env.ARCH }}`
-            Build Profile: `${{ env.PROFILE }}`
-            Included Packages: `${{ env.PACKAGES }}`
