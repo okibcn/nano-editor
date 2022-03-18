@@ -23,6 +23,6 @@ jobs:
         source_repo: "git://git.savannah.gnu.org/nano.git"
         source_branch: "origin/master"
         destination_branch: "master"
-        github_token: ${{ secrets.REPOPAT }}
-                # sync_tags: "true"
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+                # sync_tags: "true"  REPOPAT 
         
