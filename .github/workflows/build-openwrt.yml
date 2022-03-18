@@ -1,12 +1,12 @@
-# File: .github/workflows/repo-sync.yml
+# Syncs this repo with the GNU Nano editor repo.
+#
 # To push to the destination repo use https://github.com/marketplace/actions/git-sync-action
 
 name: SYNC REPO
 
 on:
   schedule:
-  - cron:  "*/5 * * * *"
-  workflow_dispatch:
+  - cron: '*/5 * * * *'
 
 jobs:
   repo-sync:
