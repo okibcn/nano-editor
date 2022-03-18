@@ -2,7 +2,7 @@
 #
 # To push to the destination repo use https://github.com/marketplace/actions/git-sync-action
 
-name: SYNC REPO
+name: SYNC_REPO
 
 on:
   schedule:
@@ -29,5 +29,5 @@ jobs:
     - name: Delete workflow runs
       uses: GitRML/delete-workflow-runs@main
       with:
-        # retain_days: 1
+        retain_days: 1
         keep_minimum_runs: 6
