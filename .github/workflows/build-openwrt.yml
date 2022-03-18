@@ -24,5 +24,6 @@ jobs:
         source_branch: "origin/master"
         destination_branch: "origin/master"
         github_token: ${{ secrets.GITHUB_TOKEN }}
-                # sync_tags: "true"  REPOPAT 
+        sync_tags: "true"
+        #  REPOPAT 
         
