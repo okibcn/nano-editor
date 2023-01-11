@@ -1,0 +1,24 @@
+--- .\utils.c
++++ .\utils-new.c
+@@ -33,6 +33,13 @@
+ void get_homedir(void)
+ {
+ 	if (homedir == NULL) {
++#ifdef _WIN32
++		const char *homenv = getenv("USERPROFILE");
++		/* When HOME isn't set get the home directory
++		 * Use all users profile. */
++		if (homenv == NULL)
++			homenv = getenv("ALLUSERSPROFILE");
++#else
+ 		const char *homenv = getenv("HOME");
+ 
+ #ifdef HAVE_PWD_H
+@@ -44,6 +51,7 @@
+ 			if (userage != NULL)
+ 				homenv = userage->pw_dir;
+ 		}
++#endif
+ #endif
+ 
+ 		/* Only set homedir if some home directory could be determined,
