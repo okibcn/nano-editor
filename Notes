@@ -1,5 +1,18 @@
 #!/bin/bash -e
 
+# git clone https://github.com/lhmouse/nano-win.git
+# cd nano-win
+
+# last commit name
+git show -s --format=%s
+
+# last commit message
+git log -1 --pretty=%B
+
+# last commit message with date
+git log -1
+
+
 # Date of last modification
 
 git clone --depth=1 git://git.savannah.gnu.org/nano.git
