@@ -3,7 +3,7 @@
 ## NANO build script in Ubuntu
 
 sudo -E apt update && sudo apt upgrade -y
-sudo -E apt install -y autoconf automake autopoint gcc gettext git groff make pkg-config texinfo
+sudo -E apt install -y autoconf automake autopoint gcc gettext git groff make pkg-config texinfo p7zip
 
 
 git clone git://git.savannah.gnu.org/nano.git nano
@@ -19,10 +19,7 @@ mkdir -p build/nano
 cd build/ncurses/
 ../../ncurses-6.4/configure --prefix="${PKG}"  --host="${host}" --enable-widec --without-ada  --without-manpages \
     --without-debug  --enable-static  --without-tests
-#   --without-ada --without-cxx-binding --disable-db-install --without-manpages  \
-#   --without-pthread --without-debug --enable-widec --disable-database  \
-#   --disable-rpath --enable-termcap --disable-home-terminfo --enable-sp-funcs  \
-#   --enable-term-driver --enable-static --disable-shared --without-tests # --host="${_host}" 
+
 make -j$(nproc)
 make install
 cd ../..
@@ -34,9 +31,8 @@ export CURSES_LIB="-lncursesw"
 export LDFLAGS="-O2 -L\"${PKG}/lib/\" -static"
 export CPPFLAGS="-DHAVE_NCURSESW_NCURSES_H -DNCURSES_STATIC  \
                  -I\"${PKG}/include\" -I\"${PKG}/include/ncursesw\""
-# touch roll-a-release.sh  # Lie to configure.ac to make use of `git describe`.
-../../configure --prefix="${PKG}"   --host="${host}" --disable-utf8 
---enable-nanorc --enable-color --disable-utf8 --disable-nls --disable-speller  \
-  --disable-threads --disable-rpath # --sysconfdir="${ALLUSERSPROFILE}" --host="${_host}" 
+touch roll-a-release.sh  # Lie to configure.ac to make use of `git describe`.
+../../configure --prefix="${PKG}"   --host="${host}" \
+  --enable-{utf8} --disable-{nls,speller,libmagic}
 make -j$(nproc)
 make install-strip

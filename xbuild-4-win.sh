@@ -1,42 +1,68 @@
-#!/bin/bash -e
-
-## NANO build script in Ubuntu
-
 sudo -E apt update && sudo apt upgrade -y
-sudo -E apt install -y autoconf automake autopoint gcc gettext git groff make pkg-config texinfo
+sudo -E apt install -y autoconf automake autopoint gcc mingw-w64 gettext git groff make pkg-config texinfo p7zip
 
-
-git clone git://git.savannah.gnu.org/nano.git nano
+git clone git://git.savannah.gnu.org/nano.git
 cd nano
+# git clone https://github.com/lhmouse/nano-win.git
+#cd nano-win
 wget -c "https://invisible-mirror.net/archives/ncurses/ncurses-6.4.tar.gz"
 tar -xzvf ncurses-6.4.tar.gz
-PKG=$(pwd)/pkg
-host="${1:-x86_64}-linux-gnu"
-# host="${1:-x86_64}-w64-mingw32"
-mkdir -p build/ncurses
-mkdir -p build/nano
 
+# Dirty fix homedir detection
+sed -i 's|\"HOME\"|"USERPROFILE\"|g' ./src/utils.c
+
+# Change default terminal to nothing
+sed -i 's|vt220||g' ./src/nano.c
+
+# Modify path expansion with backslashes
+cat src/files.c \
+  | sed "s,free(tilded);,free(tilded);\n\tfor(tilded = retval; \*tilded; ++tilded) if(\*tilded == 'SED_REPLACE') \*tilded = '/';,g" \
+  | sed "s,path\[i\] != '/',path[i] != '/' \&\& path[i] != 'SED_REPLACE',g"  \
+  | sed 's,SED_REPLACE,\\\\,g' > src/files2.c
+mv src/files2.c src/files.c
+
+# realpath function doesn't exist on Windows, which isn't fully POSIX compliant.
+echo " " >> ./src/definitions.h
+echo "#ifdef _WIN32" >> ./src/definitions.h
+echo "#define realpath(N,R) _fullpath((R),(N),_MAX_PATH)" >> ./src/definitions.h
+echo "#endif" >> ./src/definitions.h
+
+./autogen.sh
+
+PKG=$(pwd)/pkg
+host="${1:-x86_64}-w64-mingw32"
+
+# Build ncurses toolchain for local host 
+mkdir -p build/ncurses
 cd build/ncurses/
-../../ncurses-6.4/configure --prefix="${PKG}"  --host="${host}" --enable-widec --without-ada  --without-manpages \
-    --without-debug  --enable-static  --without-tests
-#   --without-ada --without-cxx-binding --disable-db-install --without-manpages  \
-#   --without-pthread --without-debug --enable-widec --disable-database  \
-#   --disable-rpath --enable-termcap --disable-home-terminfo --enable-sp-funcs  \
-#   --enable-term-driver --enable-static --disable-shared --without-tests # --host="${_host}" 
-make -j$(nproc)
+rm -rf *
+../../ncurses-6.4/configure --prefix="${PKG}"  \
+  --enable-{widec,sp-funcs,termcap,term-driver,interop}  \
+  --disable-{shared,database,rpath,home-terminfo,db-install,getcap}  \
+  --without-{progs,ada,cxx-binding,manpages,pthread,debug,tests,libtool}
+make -j$(($(nproc)*2))
+# cross Build ncurses for destination host 
+../../ncurses-6.4/configure --prefix="${PKG}"  \
+  --enable-{widec,sp-funcs,termcap,term-driver,interop}  \
+  --disable-{shared,database,rpath,home-terminfo,db-install,getcap}  \
+  --without-{progs,ada,cxx-binding,manpages,pthread,debug,tests,libtool}  --host="${host}" 
+make -j$(($(nproc)*2))
 make install
 cd ../..
 
-./autogen.sh
+# Build nano
+mkdir -p build/nano
 cd build/nano
-export CURSES_LIB_NAME="ncursesw"
-export CURSES_LIB="-lncursesw"
-export LDFLAGS="-O2 -L\"${PKG}/lib/\" -static"
-export CPPFLAGS="-DHAVE_NCURSESW_NCURSES_H -DNCURSES_STATIC  \
-                 -I\"${PKG}/include\" -I\"${PKG}/include/ncursesw\""
-# touch roll-a-release.sh  # Lie to configure.ac to make use of `git describe`.
-../../configure --prefix="${PKG}"   --host="${host}" --disable-utf8 
---enable-nanorc --enable-color --disable-utf8 --disable-nls --disable-speller  \
-  --disable-threads --disable-rpath # --sysconfdir="${ALLUSERSPROFILE}" --host="${_host}" 
-make -j$(nproc)
+rm -rf *
+# export LIBS="-lshlwapi -lbcrypt"
+export PKG_CONFIG=false  # always fails
+export CFLAGS="-O2 -g3 -flto"
+export CPPFLAGS="-D__USE_MINGW_ANSI_STDIO -I\"${PKG}/include\""
+export LDFLAGS="-L\"${PKG}/lib/\" -static -flto"
+export NCURSESW_CFLAGS="-I\"${PKG}/include/ncursesw\" -DNCURSES_STATIC"
+export NCURSESW_LIBS="-lncursesw"
+../../configure --host="${host}" --prefix="${PKG}"  \
+  --enable-utf8 --disable-{nls,speller} \
+  --sysconfdir="C:\ProgramData"  
+make -j$(($(nproc)*2))
 make install-strip
