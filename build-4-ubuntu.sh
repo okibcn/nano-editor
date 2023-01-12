@@ -33,6 +33,6 @@ export CPPFLAGS="-DHAVE_NCURSESW_NCURSES_H -DNCURSES_STATIC  \
                  -I\"${PKG}/include\" -I\"${PKG}/include/ncursesw\""
 touch roll-a-release.sh  # Lie to configure.ac to make use of `git describe`.
 ../../configure --prefix="${PKG}"   --host="${host}" \
-  --enable-{utf8} --disable-{nls,speller,libmagic}
+  --enable-utf8 --disable-{nls,speller,libmagic}
 make -j$(nproc)
 make install-strip

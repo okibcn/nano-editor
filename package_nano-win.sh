@@ -1,5 +1,8 @@
 #!/bin/bash -e
 
+./xbuild-4-win.sh x86_64
+./xbuild-4-win.sh i686
+
 _pkgversion="$(git describe --tags || echo "v0.0.0-0-unknown")"
 _revision="$(git rev-list --count HEAD)"
 
