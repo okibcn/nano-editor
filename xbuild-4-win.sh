@@ -2,12 +2,12 @@
 sudo -E apt update && sudo apt upgrade -y
 sudo -E apt install -y autoconf automake autopoint gcc mingw-w64 gettext git groff make pkg-config texinfo p7zip
 
+# Download sources
 git clone git://git.savannah.gnu.org/nano.git
 cd nano
-# git clone https://github.com/lhmouse/nano-win.git
-# cd nano-win
 wget -c "https://invisible-mirror.net/archives/ncurses/ncurses-6.4.tar.gz"
 tar -xzvf ncurses-6.4.tar.gz
+./autogen.sh
 
 # realpath function doesn't exist on Windows, which isn't fully POSIX compliant.
 echo " " >> ./src/definitions.h
@@ -27,8 +27,6 @@ cat src/files.c \
   | sed "s,path\[i\] != '/',path[i] != '/' \&\& path[i] != 'SED_REPLACE',g"  \
   | sed 's,SED_REPLACE,\\\\,g' > src/files2.c
 mv src/files2.c src/files.c
-
-./autogen.sh
 
 PKG=$(pwd)/pkg
 host="${1:-x86_64}-w64-mingw32"
