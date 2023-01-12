@@ -5,9 +5,13 @@
 git clone --depth=1 git://git.savannah.gnu.org/nano.git
 cd nano
 
-TZ=UTC git show --quiet --date='format-local:%Y-%m-%dT%H:%M:%SZ' --format="%cd"
+A=$( TZ=UTC git show --quiet --date='format-local:%Y-%m-%dT%H:%M:%SZ' --format="%cd" )
 
 
 # Get date from latest release
 
-wget -q https://api.github.com/repos/okibcn/myopenwrt/releases/latest -O - | awk -F \" -v RS="," '/published_at/ {print $(NF-1)}'
+B=$( wget -q https://api.github.com/repos/okibcn/myopenwrt/releases/latest -O - | awk -F \" -v RS="," '/published_at/ {print $(NF-1)}' )
+
+# Dates comparison
+
+if [[ $A<$B ]]; then echo "primero menor"; else echo "segundo menor"; fi

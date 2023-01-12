@@ -2,18 +2,24 @@
 sudo -E apt update && sudo apt upgrade -y
 sudo -E apt install -y autoconf automake autopoint gcc mingw-w64 gettext git groff make pkg-config texinfo p7zip
 
-git clone --depth=1 git://git.savannah.gnu.org/nano.git
+git clone git://git.savannah.gnu.org/nano.git
 cd nano
 # git clone https://github.com/lhmouse/nano-win.git
 # cd nano-win
 wget -c "https://invisible-mirror.net/archives/ncurses/ncurses-6.4.tar.gz"
 tar -xzvf ncurses-6.4.tar.gz
 
-# Dirty fix homedir detection
-sed -i 's|\"HOME\"|"USERPROFILE\"|g' ./src/utils.c
+# realpath function doesn't exist on Windows, which isn't fully POSIX compliant.
+echo " " >> ./src/definitions.h
+echo "#ifdef _WIN32" >> ./src/definitions.h
+echo "#define realpath(N,R) _fullpath((R),(N),_MAX_PATH)" >> ./src/definitions.h
+echo "#endif" >> ./src/definitions.h
 
 # Change default terminal to nothing
 sed -i 's|vt220||g' ./src/nano.c
+
+# Dirty fix homedir detection
+sed -i 's|\"HOME\"|"USERPROFILE\"|g' ./src/utils.c
 
 # Modify path expansion with backslashes
 cat src/files.c \
@@ -21,12 +27,6 @@ cat src/files.c \
   | sed "s,path\[i\] != '/',path[i] != '/' \&\& path[i] != 'SED_REPLACE',g"  \
   | sed 's,SED_REPLACE,\\\\,g' > src/files2.c
 mv src/files2.c src/files.c
-
-# realpath function doesn't exist on Windows, which isn't fully POSIX compliant.
-echo " " >> ./src/definitions.h
-echo "#ifdef _WIN32" >> ./src/definitions.h
-echo "#define realpath(N,R) _fullpath((R),(N),_MAX_PATH)" >> ./src/definitions.h
-echo "#endif" >> ./src/definitions.h
 
 ./autogen.sh
 
@@ -55,8 +55,7 @@ cd ../..
 mkdir -p build/nano
 cd build/nano
 rm -rf *
-# export LIBS="-lshlwapi -lbcrypt"
-export PKG_CONFIG=false  # always fails
+export PKG_CONFIG=false
 export CFLAGS="-O2 -g3 -flto"
 export CPPFLAGS="-D__USE_MINGW_ANSI_STDIO -I\"${PKG}/include\""
 export LDFLAGS="-L\"${PKG}/lib/\" -static -flto"
