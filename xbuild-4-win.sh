@@ -1,10 +1,11 @@
+#!/bin/bash -e
 sudo -E apt update && sudo apt upgrade -y
 sudo -E apt install -y autoconf automake autopoint gcc mingw-w64 gettext git groff make pkg-config texinfo p7zip
 
-git clone git://git.savannah.gnu.org/nano.git
+git clone --depth=1 git://git.savannah.gnu.org/nano.git
 cd nano
 # git clone https://github.com/lhmouse/nano-win.git
-#cd nano-win
+# cd nano-win
 wget -c "https://invisible-mirror.net/archives/ncurses/ncurses-6.4.tar.gz"
 tar -xzvf ncurses-6.4.tar.gz
 

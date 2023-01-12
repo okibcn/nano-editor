@@ -1,1 +1,1 @@
-Nano
+Nano for Windows x86_64
