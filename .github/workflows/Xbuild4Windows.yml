@@ -27,6 +27,9 @@ jobs:
     - name: "⏬ Checkout repository"
       uses: actions/checkout@v3
 
+    - name: Set up MinGW
+      uses: egor-tensin/setup-mingw@v2
+
     - name: "🐞 Debug session"
       uses: mxschmitt/action-tmate@v3
       if: github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true'
@@ -71,8 +74,9 @@ jobs:
 
     - name: "⚙️ Xbuild4Windows"
       run: |
-        sudo -E apt -qq update && sudo apt upgrade -y
-        sudo -E apt -qq install -y autoconf automake autopoint gcc mingw-w64 gettext git groff make pkg-config texinfo p7zip-full
+        # sudo -E apt -qq update && sudo apt upgrade -y
+        sudo -E apt -qq install -y autoconf automake autopoint gcc gettext git groff make pkg-config texinfo p7zip-full
+        # mingw-w64
         ./xbuild-4-win.sh || exit 1
         NEWTAG="$(git describe --tags 2>/dev/null | sed "s/.\{10\}$//")-$(git rev-list --count HEAD)"
         echo "NEWTAG=$NEWTAG" >>$GITHUB_ENV
