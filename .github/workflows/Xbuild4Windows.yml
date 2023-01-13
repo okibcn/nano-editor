@@ -56,7 +56,8 @@ jobs:
           echo >> body.txt
         fi 
         if [[ $LAST_NCURSES<$LAST_RELEASE ]]; then 
-          echo "**NCURSES CHAGES**" > body.txt
+          echo "NEW NCURSES SOURCE!!!!"
+          echo "**NCURSES CHAGES**" >> body.txt
           echo >> body.txt
           echo "$CHANGES_NCURSES" >> body.txt
         fi 
