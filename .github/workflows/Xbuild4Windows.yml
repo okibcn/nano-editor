@@ -50,7 +50,9 @@ jobs:
         cd ..
         rm -rf nano ncurses
         BODY="* INITIAL RELEASE\n\n$CHANGES_NANO\n\n$CHANGES_NCURSES"
-        echo "BODY=""$BODY"" " >>$GITHUB_ENV
+        echo "BODY<<EOF" >> $GITHUB_ENV
+        echo "$BODY" >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
         exit 0
         # LAST_RELEASE=$( wget -q https://api.github.com/repos/okibcn/nano-editor/releases/latest -O - | awk -F \" -v RS="," '/published_at/ {print $(NF-1)}' )
         # if [[ $LAST_SOURCE>$LAST_RELEASE ]]; then 
@@ -81,6 +83,7 @@ jobs:
     - name: "⚙️ Xbuild4Windows"
       run: |
         ./xbuild-4-win.sh || exit 1
+        cd nano
         NEWTAG="$(git describe --tags 2>/dev/null | sed "s/.\{10\}$//")-$(git rev-list --count HEAD)"
         echo "NEWTAG=$NEWTAG" >>$GITHUB_ENV
 
