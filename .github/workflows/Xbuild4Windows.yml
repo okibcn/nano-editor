@@ -57,6 +57,7 @@ jobs:
         fi 
         if [[ $LAST_NCURSES<$LAST_RELEASE ]]; then 
           echo "NEW NCURSES SOURCE!!!!"
+          [ -f body.txt ] && echo >> body.txt
           echo "**NCURSES CHAGES**" >> body.txt
           echo >> body.txt
           echo "$CHANGES_NCURSES" >> body.txt
@@ -103,7 +104,7 @@ jobs:
         cd ..
         ./autogen.sh
 
-    - name: "⚙️ Apply Patches"
+    - name: "⚙️ Apply Portability Patches"
       run: |
         cd nano
         # >realpath< function doesn't exist on Windows, which isn't fully POSIX compliant.
@@ -129,7 +130,7 @@ jobs:
         sed -i -e "s,Compiled options,Using ${NCURSES}\\\\n Compiled options," src/nano.c
         sed -i -e "s|git describe --tags 2>/dev/null|git describe --tags 2>/dev/null\` for Windows, build \`git rev-list --count HEAD|" src/Makefile.am
 
-    - name: "⚙️ Build Ncurse Toolchain"
+    - name: "⚙️ Build Ncurses Toolchain"
       run: |
         cd nano
         ##########################
