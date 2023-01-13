@@ -78,8 +78,8 @@ jobs:
         sudo -E apt -qq install -y autoconf automake autopoint gcc gettext git groff make pkg-config texinfo p7zip-full
         #mingw-w64 
 
-     - name: Set up MinGW
-       uses: egor-tensin/setup-mingw@v2
+    - name: Set up MinGW
+      uses: egor-tensin/setup-mingw@v2
 
     - name: "⚙️ Xbuild4Windows"
       run: |
