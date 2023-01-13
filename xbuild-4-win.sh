@@ -3,7 +3,7 @@
 # This is free software, licensed under the GNU General Public License v3.0
 # See /LICENSE for more information.
 # https://github.com/okibcn/nano-editor
-# Description: Build OpenWrt image with full config
+# Description: Cross Build Mano Editor from Linux to Windows 32 and 64 bits.
 
 # Required packages:
 # sudo -E apt -qq update && sudo apt upgrade -y
@@ -144,8 +144,7 @@ cd ../..
 ##                          ##
  ############################
 
-NANO_VERSION="$(git describe --tags 2>/dev/null | sed "s/.\{10\}$//")-$(git rev-list --count HEAD)"
-
+NEWTAG="$(git describe --tags 2>/dev/null | sed "s/.\{10\}$//")-$(git rev-list --count HEAD)"
 strip -s pkg_{i686,x86_64}-w64-mingw32/bin/nano.exe
 cp doc/sample.nanorc.in .nanorc
 7z a -aoa -mmt"$(nproc)" --  \
