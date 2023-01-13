@@ -37,34 +37,36 @@ jobs:
       run: |
         git clone --depth=1 -n git://git.savannah.gnu.org/nano.git
         cd nano
-        LAST_SOURCE=$( TZ=UTC git show --quiet --date='format-local:%Y-%m-%dT%H:%M:%SZ' --format="%cd" )
-        CHANGES_NANO="*NANO UPDATES:*\n\n$(git log -1 --pretty=%B)"
+        LAST_NANO=$( TZ=UTC git show --quiet --date='format-local:%Y-%m-%dT%H:%M:%SZ' --format="%cd" )
+        CHANGES_NANO="$(git log -1 --pretty=%B)"
         cd ..
         git clone --depth=1 -n https://github.com/mirror/ncurses.git
         cd ncurses
         LAST_NCURSES=$( TZ=UTC git show --quiet --date='format-local:%Y-%m-%dT%H:%M:%SZ' --format="%cd" )
-        CHANGES_NCURSES="*NCURSES UPDATES:*\n\n$(git log -1 --pretty=%B)"
+        CHANGES_NCURSES="$(git log -1 --pretty=%B)"
         cd ..
         rm -rf nano ncurses
         LAST_RELEASE=$( wget -q https://api.github.com/repos/okibcn/nano-editor/releases/latest -O - | awk -F \" -v RS="," '/published_at/ {print $(NF-1)}' )
-        if [[ $LAST_SOURCE>$LAST_RELEASE ]]; then 
+        if [[ $LAST_NANO<$LAST_RELEASE ]]; then 
           echo "NEW NANO SOURCE!!!!"
-          BODY="$CHANGES_NANO"
+          echo "**NANO CHAGES**" > body.txt
+          echo >> body.txt
+          echo "$CHANGES_NANO" >> body.txt
+          echo >> body.txt
+          echo >> body.txt
         fi 
-        if [[ $LAST_SOURCE>$LAST_NCURSES ]]; then 
-          echo "NEW NCOURSES SOURCE!!!!"
-          BODY="$BODY\n\n$CHANGES_NCURSES"
+        if [[ $LAST_NCURSES<$LAST_RELEASE ]]; then 
+          echo "**NCURSES CHAGES**" > body.txt
+          echo >> body.txt
+          echo "$CHANGES_NCURSES" >> body.txt
         fi 
-        if [ -n "$BODY" ]; then
-          # BODY="**INITIAL RELEASE**\\n\\n$CHANGES_NANO\\n\\n$CHANGES_NCURSES"
-          echo "BODY<<EOF" >> $GITHUB_ENV
-          echo "$BODY" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-          exit 0
-        else 
-          echo "NOTHING HAS CHANGED. See you.";
-          exit 1
-        fi
+        [ -f body.txt ] || exit 1
+        # BODY="**INITIAL RELEASE**\\n\\n$CHANGES_NANO\\n\\n$CHANGES_NCURSES"
+        BODY=$(<body.txt)
+        echo "BODY<<EOF" >> $GITHUB_ENV
+        echo "$BODY" >> $GITHUB_ENV
+        echo "EOF" >> $GITHUB_ENV
+        exit 0
 
     - name: "👋 Cancelling Actions"
       if: failure()
@@ -72,8 +74,10 @@ jobs:
 
     - name: "⏬ Install Toolchain OS Tools"
       run: |
+        # FAST UBUNTU SERVERS
         sudo sed -i -e 's|azure.archive.ubuntu.com|ubuntu.securedservers.com|g' /etc/apt/sources.list
         sudo -E apt -qq update
+
         # sudo -E apt -qq update && sudo apt upgrade -y
         sudo -E apt -qq install -y mingw-w64 autoconf automake autopoint gcc gettext git groff make pkg-config texinfo p7zip-full
         
