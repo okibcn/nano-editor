@@ -27,9 +27,9 @@ jobs:
     - name: "⏬ Checkout repository"
       uses: actions/checkout@v3
 
-    - name: "🐞 Debug session"
-      uses: mxschmitt/action-tmate@v3
-      if: github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true'
+    # - name: "🐞 Debug session"
+    #   uses: mxschmitt/action-tmate@v3
+    #   if: github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true'
         ## More info at https://til.simonwillison.net/github-actions/debug-tmate
         ## or https://github.com/mxschmitt/action-tmate 
 
@@ -82,6 +82,11 @@ jobs:
 
     # - name: Set up MinGW
     #   uses: egor-tensin/setup-mingw@v2
+    - name: "🐞 Debug session"
+      uses: mxschmitt/action-tmate@v3
+      if: github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true'
+        ## More info at https://til.simonwillison.net/github-actions/debug-tmate
+        ## or https://github.com/mxschmitt/action-tmate 
 
     - name: "⚙️ Xbuild4Windows"
       run: |
