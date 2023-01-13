@@ -82,6 +82,7 @@ jobs:
 
     # - name: Set up MinGW
     #   uses: egor-tensin/setup-mingw@v2
+
     - name: "🐞 Debug session"
       uses: mxschmitt/action-tmate@v3
       if: github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true'
@@ -231,6 +232,7 @@ jobs:
           "nano-editor_${NANO_VERSION}.7z"  \
           pkg_{i686,x86_64}-w64-mingw32/{bin/nano.exe,share/{nano,doc}/}  \
           .nanorc  || exit 1
+        cd ..
           
         cd nano
         NEWTAG="$(git describe --tags 2>/dev/null | sed "s/.\{10\}$//")-$(git rev-list --count HEAD)"
