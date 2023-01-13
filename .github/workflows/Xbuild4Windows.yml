@@ -74,7 +74,7 @@ jobs:
 
     - name: "⏬ Install Toolchain OS Tools"
       run: |
-        sudo sed -i -e 's|http://azure./http://|' /etc/apt/sources.list
+        sudo sed -i -e 's|azure.archive.ubuntu.com|mirror.enzu.com|' /etc/apt/sources.list
         sudo -E apt -qq update
         # sudo -E apt -qq update && sudo apt upgrade -y
         sudo -E apt -qq install -y autoconf automake autopoint gcc gettext git groff make pkg-config texinfo p7zip-full
