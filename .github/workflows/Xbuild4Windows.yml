@@ -47,7 +47,8 @@ jobs:
         cd ..
         rm -rf nano ncurses
         LAST_RELEASE=$( wget -q https://api.github.com/repos/okibcn/nano-editor/releases/latest -O - | awk -F \" -v RS="," '/published_at/ {print $(NF-1)}' )
-        if [[ $LAST_NANO<$LAST_RELEASE ]]; then 
+
+        if [[ $LAST_NANO>$LAST_RELEASE ]]; then 
           echo "NEW NANO SOURCE!!!!"
           echo "**NANO CHAGES**" > body.txt
           echo >> body.txt
@@ -55,15 +56,15 @@ jobs:
           echo >> body.txt
           echo >> body.txt
         fi 
-        if [[ $LAST_NCURSES<$LAST_RELEASE ]]; then 
+        if [[ $LAST_NCURSES>$LAST_RELEASE ]]; then 
           echo "NEW NCURSES SOURCE!!!!"
           [ -f body.txt ] && echo >> body.txt
           echo "**NCURSES CHAGES**" >> body.txt
           echo >> body.txt
           echo "$CHANGES_NCURSES" >> body.txt
-        fi 
+        fi
+
         [ -f body.txt ] || exit 1
-        # BODY="**INITIAL RELEASE**\\n\\n$CHANGES_NANO\\n\\n$CHANGES_NCURSES"
         BODY=$(<body.txt)
         echo "BODY<<EOF" >> $GITHUB_ENV
         echo "$BODY" >> $GITHUB_ENV
