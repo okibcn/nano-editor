@@ -50,7 +50,7 @@ jobs:
         cd ..
         rm -rf nano ncurses
         BODY="* INITIAL RELEASE\n\n$CHANGES_NANO\n\n$CHANGES_NCURSES"
-        echo "BODY=$BODY" >>$GITHUB_ENV
+        echo "BODY=""$BODY"" " >>$GITHUB_ENV
         exit 0
         # LAST_RELEASE=$( wget -q https://api.github.com/repos/okibcn/nano-editor/releases/latest -O - | awk -F \" -v RS="," '/published_at/ {print $(NF-1)}' )
         # if [[ $LAST_SOURCE>$LAST_RELEASE ]]; then 
