@@ -28,3 +28,11 @@ B=$( wget -q https://api.github.com/repos/okibcn/myopenwrt/releases/latest -O - 
 # Dates comparison
 
 if [[ $A<$B ]]; then echo "primero menor"; else echo "segundo menor"; fi
+
+
+# Current UTC time:
+TZ=UTC date +'%Y.%m.%dT%H:%M:%SZ'
+
+
+
+git describe --tags 2>/dev/null` for Windows, build `git rev-list --count HEAD
