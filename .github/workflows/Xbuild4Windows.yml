@@ -38,35 +38,33 @@ jobs:
         git clone --depth=1 -n git://git.savannah.gnu.org/nano.git
         cd nano
         LAST_SOURCE=$( TZ=UTC git show --quiet --date='format-local:%Y-%m-%dT%H:%M:%SZ' --format="%cd" )
-        CHANGES_NANO="* NANO UPDATES:\n\n$(git log -1 --pretty=%B)"
+        CHANGES_NANO="*NANO UPDATES:*\n\n$(git log -1 --pretty=%B)"
         cd ..
         git clone --depth=1 -n https://github.com/mirror/ncurses.git
         cd ncurses
         LAST_NCURSES=$( TZ=UTC git show --quiet --date='format-local:%Y-%m-%dT%H:%M:%SZ' --format="%cd" )
-        CHANGES_NCURSES="* NCURSES UPDATES:\n\n$(git log -1 --pretty=%B)"
+        CHANGES_NCURSES="*NCURSES UPDATES:*\n\n$(git log -1 --pretty=%B)"
         cd ..
         rm -rf nano ncurses
-        BODY="* INITIAL RELEASE\n\n$CHANGES_NANO\n\n$CHANGES_NCURSES"
-        echo "BODY<<EOF" >> $GITHUB_ENV
-        echo "$BODY" >> $GITHUB_ENV
-        echo "EOF" >> $GITHUB_ENV
-        exit 0
-        # LAST_RELEASE=$( wget -q https://api.github.com/repos/okibcn/nano-editor/releases/latest -O - | awk -F \" -v RS="," '/published_at/ {print $(NF-1)}' )
-        # if [[ $LAST_SOURCE>$LAST_RELEASE ]]; then 
-        #   echo "NEW NANO SOURCE!!!!"
-        #   BODY="$CHANGES_NANO"
-        # fi 
-        # if [[ $LAST_SOURCE>$LAST_NCURSES ]]; then 
-        #   echo "NEW NCOURSES SOURCE!!!!"
-        #   BODY="$BODY\n\n$CHANGES_NCURSES"
-        # fi 
-        # if [ -n "$BODY" ]; then
-        #   echo "BODY=$BODY" >>$GITHUB_ENV
-        #   exit 0
-        # else 
-        #   echo "NOTHING HAS CHANGED. See you.";
-        #   exit 1
-        # fi
+        LAST_RELEASE=$( wget -q https://api.github.com/repos/okibcn/nano-editor/releases/latest -O - | awk -F \" -v RS="," '/published_at/ {print $(NF-1)}' )
+        if [[ $LAST_SOURCE>$LAST_RELEASE ]]; then 
+          echo "NEW NANO SOURCE!!!!"
+          BODY="$CHANGES_NANO"
+        fi 
+        if [[ $LAST_SOURCE>$LAST_NCURSES ]]; then 
+          echo "NEW NCOURSES SOURCE!!!!"
+          BODY="$BODY\n\n$CHANGES_NCURSES"
+        fi 
+        if [ -n "$BODY" ]; then
+          # BODY="**INITIAL RELEASE**\\n\\n$CHANGES_NANO\\n\\n$CHANGES_NCURSES"
+          echo "BODY<<EOF" >> $GITHUB_ENV
+          echo "$BODY" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          exit 0
+        else 
+          echo "NOTHING HAS CHANGED. See you.";
+          exit 1
+        fi
 
     - name: "👋 Cancelling Actions"
       if: failure()
@@ -89,7 +87,7 @@ jobs:
         ## More info at https://til.simonwillison.net/github-actions/debug-tmate
         ## or https://github.com/mxschmitt/action-tmate 
 
-    - name: "⚙️ Xbuild4Windows"
+    - name: "⏬ Download Sources"
       run: |
         git clone git://git.savannah.gnu.org/nano.git
         cd nano
@@ -97,10 +95,12 @@ jobs:
         git log -n 1
         cd ncurses
         git log -n 1
-        NCURSES=$(git show -s --format=%s)
         cd ..
         ./autogen.sh
 
+    - name: "⚙️ Apply Patches"
+      run: |
+        cd nano
         # >realpath< function doesn't exist on Windows, which isn't fully POSIX compliant.
         echo " " >> ./src/definitions.h
         echo "#ifdef _WIN32" >> ./src/definitions.h
@@ -118,9 +118,15 @@ jobs:
                   s,path\[i\] != '/',path[i] != '/' \&\& path[i] != '\\\\\\\\'," src/files.c
 
         # Adding static ncurses revision and patch level to nano version info.
+        cd ncurses
+        NCURSES=$(git show -s --format=%s)
+        cd ..
         sed -i -e "s,Compiled options,Using ${NCURSES}\\\\n Compiled options," src/nano.c
         sed -i -e "s|git describe --tags 2>/dev/null|git describe --tags 2>/dev/null\` for Windows, build \`git rev-list --count HEAD|" src/Makefile.am
 
+    - name: "⚙️ Build Ncurse Toolchain"
+      run: |
+        cd nano
         ##########################
         ##                        ##
         ##    BUILD TOOLCHAIN     ##
@@ -137,6 +143,9 @@ jobs:
         make -j$(($(nproc)*2)) || exit 1
         cd ../..
 
+    - name: "⚙️ Build for Windows 64 bits"
+      run: |
+        cd nano
         ##########################
         ##                        ##
         ##   BUILD FOR x86_64     ##
@@ -178,6 +187,9 @@ jobs:
         make install-strip || exit 1
         cd ../..
 
+    - name: "⚙️ Build for Windows 32 bits"
+      run: |
+        cd nano
         ############################
         ##                          ##
         ## BUILD FOR i686 (32 bits) ##
@@ -219,6 +231,9 @@ jobs:
         make install-strip  || exit 1
         cd ../..
 
+    - name: "📦 Create Package"
+      run: |
+        cd nano
         ############################
         ##                          ##
         ##      CREATE PACKAGE      ##
