@@ -1,0 +1,87 @@
+# Copyright (c) 2022 okibcn
+# This is free software, licensed under the GNU General Public License v3.0
+# See /LICENSE for more information.
+# https://github.com/okibcn/nano-editor
+# Description: Build OpenWrt image with full config
+
+name: Xbuild4Windows
+on: 
+  schedule:
+    - cron: '57 0 * * *'
+  # runs at 0:57 UTC every day
+  workflow_dispatch:
+    inputs:
+      debug_enabled:
+        description: 'Run the build with tmate debugging enabled true/false (default: false)'     
+        required: false
+        default: 'false'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # Use the Bash shell regardless whether the GitHub Actions runner is ubuntu-latest, macos-latest, or windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+    - name: "⏬ Checkout repository"
+      uses: actions/checkout@v3
+
+    - name: "🐞 Debug session"
+      uses: mxschmitt/action-tmate@v3
+      if: github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true'
+        ## More info at https://til.simonwillison.net/github-actions/debug-tmate
+        ## or https://github.com/mxschmitt/action-tmate 
+
+    - name: "❔ Pre-build checks"
+      run: |
+        git clone --depth=1 -n git://git.savannah.gnu.org/nano.git
+        cd nano
+        $LAST_SOURCE=$( TZ=UTC git show --quiet --date='format-local:%Y-%m-%dT%H:%M:%SZ' --format="%cd" )
+        CHANGES_NANO="* NANO UPDATES:\n\n$(git log -1 --pretty=%B)"
+        cd ..
+        git clone --depth=1 -n https://github.com/mirror/ncurses.git
+        cd ncurses
+        $LAST_NCURSES=$( TZ=UTC git show --quiet --date='format-local:%Y-%m-%dT%H:%M:%SZ' --format="%cd" )
+        CHANGES_NCURSES="* NCURSES UPDATES:\n\n$(git log -1 --pretty=%B)"
+        cd ..
+        LAST_RELEASE=$( wget -q https://api.github.com/repos/okibcn/nano-editor/releases/latest -O - | awk -F \" -v RS="," '/published_at/ {print $(NF-1)}' )
+        if [[ $LAST_SOURCE>$LAST_RELEASE ]]; then 
+          echo "NEW NANO SOURCE!!!!"
+          BODY="$CHANGES_NANO"
+        fi 
+        if [[ $LAST_SOURCE>$LAST_NCURSES ]]; then 
+          echo "NEW NCOURSES SOURCE!!!!"
+          BODY="$BODY\n\n$CHANGES_NCURSES"
+        fi 
+        if [ -n "$BODY" ]; then
+          echo "BODY=$BODY" >>$GITHUB_ENV
+          exit 0
+        fi 
+          echo "NOTHING HAS CHANGED. See you.";
+          exit 1
+        fi
+
+    - name: "👋 Cancelling Actions"
+      if: failure()
+      uses: andymckay/cancel-action@0.2
+
+
+    - name: "⚙️ Xbuild4Windows"
+      run: |
+        sudo -E apt -qq update && sudo apt upgrade -y
+        sudo -E apt -qq install -y autoconf automake autopoint gcc mingw-w64 gettext git groff make pkg-config texinfo p7zip-full
+        ./xbuild-4-win.sh || exit 1
+        NEWTAG="$(git describe --tags 2>/dev/null | sed "s/.\{10\}$//")-$(git rev-list --count HEAD)"
+        echo "NEWTAG=$NEWTAG" >>$GITHUB_ENV
+
+
+    - name: "👍 Upload release"
+      uses: softprops/action-gh-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ env.NEWTAG }}
+        files: nano/*.7z
+        body: |
+          `${{ env.BODY }}`
