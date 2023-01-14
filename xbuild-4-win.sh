@@ -24,6 +24,7 @@ cd ..
 # >realpath< function doesn't exist on Windows, which isn't fully POSIX compliant.
 echo " " >> ./src/definitions.h
 echo "#ifdef _WIN32" >> ./src/definitions.h
+echo "#include <windows.h>"  >> ./src/definitions.h
 echo "#define realpath(N,R) _fullpath((R),(N),_MAX_PATH)" >> ./src/definitions.h
 echo "#endif" >> ./src/definitions.h
 
@@ -36,6 +37,15 @@ sed -i 's|\"HOME\"|"USERPROFILE\"|g' ./src/utils.c
 # Modify path expansion with backslashes
 sed -i -e "s,free(tilded);,free(tilded);\n\tfor(tilded = retval; \*tilded; ++tilded) if(\*tilded == '\\\\\\\\') \*tilded = '/';, ;
            s,path\[i\] != '/',path[i] != '/' \&\& path[i] != '\\\\\\\\'," src/files.c
+
+# Solve SHIFT, ALT and CTRL keys
+sed -i -e "s,waiting_codes = 1;,waiting_codes = 0;\n\tif (GetAsyncKeyState(VK_LMENU) < 0)	key_buffer[waiting_codes++] = ESC_CODE;\n\tkey_buffer[waiting_codes++] = input;," src/winio.c
+
+sed -i '/TIOCLINUX/i \\tmodifiers = 0;' src/winio.c
+sed -i '/TIOCLINUX/i \\tif(GetAsyncKeyState(VK_SHIFT) < 0) modifiers |= 0x01;' src/winio.c
+sed -i '/TIOCLINUX/i \\tif(GetAsyncKeyState(VK_CONTROL) < 0) modifiers |= 0x04;' src/winio.c
+sed -i '/TIOCLINUX/i \\tif(GetAsyncKeyState(VK_LMENU) < 0) modifiers |= 0x08;' src/winio.c
+sed -i '/TIOCLINUX/c \\tif (!mute_modifiers) {' src/winio.c
 
 # Adding static ncurses revision and patch level to nano version info.
 sed -i -e "s,Compiled options,Using ${NCURSES}\\\\n Compiled options," src/nano.c
@@ -77,11 +87,11 @@ export CPPFLAGS="-D__USE_MINGW_ANSI_STDIO -I\"${OUTDIR}/include\""
 export LDFLAGS="-L\"${OUTDIR}/lib/\" -static -flto -static-libgcc"
 export NCURSESW_CFLAGS="-I\"${OUTDIR}/include/ncursesw\" -DNCURSES_STATIC"
 export NCURSESW_LIBS="-lncursesw"
-# export LIBS="-lshlwapi -lbcrypt"
+export LIBS="-lshlwapi" # -lbcrypt"
 ../../configure --host="${TARGET}" --prefix="${OUTDIR}"  \
   --enable-utf8 --disable-{nls,speller} \
-  --sysconfdir="C:\ProgramData"  || exit 1
-make -j$(($(nproc)*2)) && make install-strip || exit 1
+  --sysconfdir="C:\ProgramData"  # || exit 1
+make -j$(($(nproc)*2)) && make install-strip # || exit 1
 cd ../..
 
  ############################
