@@ -39,13 +39,15 @@ sed -i -e "s,free(tilded);,free(tilded);\n\tfor(tilded = retval; \*tilded; ++til
            s,path\[i\] != '/',path[i] != '/' \&\& path[i] != '\\\\\\\\'," src/files.c
 
 # Solve SHIFT, ALT and CTRL keys
-sed -i -e "s,waiting_codes = 1;,waiting_codes = 0;\n\tif (GetAsyncKeyState(VK_LMENU) < 0)	key_buffer[waiting_codes++] = ESC_CODE;\n\tkey_buffer[waiting_codes++] = input;," src/winio.c
+sed -i "s,waiting_codes = 1;,waiting_codes = 0;\n\
+    if (GetAsyncKeyState(VK_LMENU) < 0)	key_buffer[waiting_codes++] = ESC_CODE;\n\
+    key_buffer[waiting_codes++] = input;," src/winio.c
 
-sed -i '/TIOCLINUX/i \\tmodifiers = 0;' src/winio.c
-sed -i '/TIOCLINUX/i \\tif(GetAsyncKeyState(VK_SHIFT) < 0) modifiers |= 0x01;' src/winio.c
-sed -i '/TIOCLINUX/i \\tif(GetAsyncKeyState(VK_CONTROL) < 0) modifiers |= 0x04;' src/winio.c
-sed -i '/TIOCLINUX/i \\tif(GetAsyncKeyState(VK_LMENU) < 0) modifiers |= 0x08;' src/winio.c
-sed -i '/TIOCLINUX/c \\tif (!mute_modifiers) {' src/winio.c
+sed -i '/TIOCLINUX/c \\tmodifiers \= 0; \
+    if(GetAsyncKeyState(VK_SHIFT) < 0) modifiers |\= 0x01; \
+    if(GetAsyncKeyState(VK_CONTROL) < 0) modifiers |\= 0x04; \
+    if(GetAsyncKeyState(VK_LMENU) < 0) modifiers |\= 0x08; \
+    if (!mute_modifiers) {' src/winio.c
 
 # Adding static ncurses revision and patch level to nano version info.
 sed -i -e "s,Compiled options,Using ${NCURSES}\\\\n Compiled options," src/nano.c
@@ -144,11 +146,11 @@ cd ../..
 ##                          ##
  ############################
 
-NEWTAG="$(git describe --tags 2>/dev/null | sed "s/.\{10\}$//")-$(git rev-list --count HEAD)"
+NANO_VERSION="$(git describe --tags 2>/dev/null | sed "s/.\{10\}$//")-$(git rev-list --count HEAD)"
 strip -s pkg_{i686,x86_64}-w64-mingw32/bin/nano.exe
 cp doc/sample.nanorc.in .nanorc
 7z a -aoa -mmt"$(nproc)" --  \
-  "nano-editor_${NEWTAG}.7z"  \
+  "nano-editor_${NANO_VERSION}.7z"  \
   pkg_{i686,x86_64}-w64-mingw32/{bin/nano.exe,share/{nano,doc}/}  \
   .nanorc  || exit 1
 exit 0

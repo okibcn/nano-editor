@@ -105,6 +105,7 @@ jobs:
         # >realpath< function doesn't exist on Windows, which isn't fully POSIX compliant.
         echo " " >> ./src/definitions.h
         echo "#ifdef _WIN32" >> ./src/definitions.h
+        echo "#include <windows.h>"  >> ./src/definitions.h
         echo "#define realpath(N,R) _fullpath((R),(N),_MAX_PATH)" >> ./src/definitions.h
         echo "#endif" >> ./src/definitions.h
 
@@ -118,10 +119,17 @@ jobs:
         sed -i -e "s,free(tilded);,free(tilded);\n\tfor(tilded = retval; \*tilded; ++tilded) if(\*tilded == '\\\\\\\\') \*tilded = '/';, ;
                   s,path\[i\] != '/',path[i] != '/' \&\& path[i] != '\\\\\\\\'," src/files.c
 
+        # Solve SHIFT, ALT and CTRL keys
+        sed -i "s,waiting_codes = 1;,waiting_codes = 0;\n\
+            if (GetAsyncKeyState(VK_LMENU) < 0)	key_buffer[waiting_codes++] = ESC_CODE;\n\
+            key_buffer[waiting_codes++] = input;," src/winio.c
+        sed -i '/TIOCLINUX/c \\tmodifiers \= 0; \
+            if(GetAsyncKeyState(VK_SHIFT) < 0) modifiers |\= 0x01; \
+            if(GetAsyncKeyState(VK_CONTROL) < 0) modifiers |\= 0x04; \
+            if(GetAsyncKeyState(VK_LMENU) < 0) modifiers |\= 0x08; \
+            if (!mute_modifiers) {' src/winio.c
+
         # Adding static ncurses revision and patch level to nano version info.
-        cd ncurses
-        NCURSES=$(git show -s --format=%s)
-        cd ..
         sed -i -e "s,Compiled options,Using ${NCURSES}\\\\n Compiled options," src/nano.c
         sed -i -e "s|git describe --tags 2>/dev/null|git describe --tags 2>/dev/null\` for Windows, build \`git rev-list --count HEAD|" src/Makefile.am
 
