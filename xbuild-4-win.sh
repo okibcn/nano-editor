@@ -10,7 +10,12 @@
 # sudo -E apt -qq update && sudo apt upgrade -y
 # sudo -E apt -qq install -y autoconf automake autopoint gcc mingw-w64 gettext git groff make pkg-config texinfo p7zip-full
 
-# Download sources
+
+ ##########################
+##                        ##
+##    DOWNLOAD SOURCES    ##
+##                        ##
+ ##########################
 git clone git://git.savannah.gnu.org/nano.git
 cd nano
 git clone https://github.com/mirror/ncurses.git
@@ -21,11 +26,17 @@ NCURSES=$(git show -s --format=%s)
 cd ..
 ./autogen.sh
 
+ ##########################
+##                        ##
+##     APPLY PATCHES      ##
+##                        ##
+ ##########################
+
 # >realpath< function doesn't exist on Windows, which isn't fully POSIX compliant.
 echo " " >> ./src/definitions.h
 echo "#ifdef _WIN32" >> ./src/definitions.h
 echo "#include <windows.h>"  >> ./src/definitions.h
-echo "#define realpath(N,R) _fullpath((R),(N),_MAX_PATH)" >> ./src/definitions.h
+echo "#define realpath(N,R) _fullpath((R),(N),0)" >> ./src/definitions.h
 echo "#endif" >> ./src/definitions.h
 
 # Change default terminal to nothing
@@ -38,16 +49,22 @@ sed -i 's|\"HOME\"|"USERPROFILE\"|g' ./src/utils.c
 sed -i -e "s,free(tilded);,free(tilded);\n\tfor(tilded = retval; \*tilded; ++tilded) if(\*tilded == '\\\\\\\\') \*tilded = '/';, ;
            s,path\[i\] != '/',path[i] != '/' \&\& path[i] != '\\\\\\\\'," src/files.c
 
+# Modify temporal path from linux to windows
+sed -i 's|TMPDIR|TEMP|g' ./src/files.c
+
 # Solve SHIFT, ALT and CTRL keys
 sed -i "s,waiting_codes = 1;,waiting_codes = 0;\n\
     if (GetAsyncKeyState(VK_LMENU) < 0)	key_buffer[waiting_codes++] = ESC_CODE;\n\
     key_buffer[waiting_codes++] = input;," src/winio.c
-
 sed -i '/TIOCLINUX/c \\tmodifiers \= 0; \
     if(GetAsyncKeyState(VK_SHIFT) < 0) modifiers |\= 0x01; \
     if(GetAsyncKeyState(VK_CONTROL) < 0) modifiers |\= 0x04; \
     if(GetAsyncKeyState(VK_LMENU) < 0) modifiers |\= 0x08; \
     if (!mute_modifiers) {' src/winio.c
+
+# default open() files in binary mode as it does in linux
+sed -i 's/ONLY/ONLY | _O_BINARY/g' ./src/files.c
+sed -i 's/ONLY/ONLY | _O_BINARY/g' ./src/text.c
 
 # Adding static ncurses revision and patch level to nano version info.
 sed -i -e "s,Compiled options,Using ${NCURSES}\\\\n Compiled options," src/nano.c
@@ -73,7 +90,7 @@ mkdir -p "$(pwd)/build_${TARGET}/ncurses"
 cd "$(pwd)/build_${TARGET}/ncurses"
 rm -rf *
 ../../ncurses/configure --prefix="${OUTDIR}"  \
-  --enable-{widec,sp-funcs,termcap,term-driver,interop}  \
+  --enable-{widec,sp-funcs,termcap,exp-win32,term-driver,interop}  \
   --disable-{shared,database,rpath,home-terminfo,db-install,getcap,echo}  \
   --without-{progs,ada,cxx-binding,manpages,pthread,debug,tests,libtool}  \
   --build="$(gcc -dumpmachine)" --host="${TARGET}" || exit 1
@@ -115,7 +132,7 @@ export LDFLAGS="-static-libgcc"
 mkdir -p "$(pwd)/build_${TARGET}/ncurses"
 cd "$(pwd)/build_${TARGET}/ncurses"
 rm -rf *
-../../ncurses/configure --prefix="${OUTDIR}"  \
+../../ncurses/configure --prefix="${OUTDIR}" \
   --enable-{widec,sp-funcs,termcap,term-driver,interop}  \
   --disable-{shared,database,rpath,home-terminfo,db-install,getcap,echo}  \
   --without-{progs,ada,cxx-binding,manpages,pthread,debug,tests,libtool}  \
