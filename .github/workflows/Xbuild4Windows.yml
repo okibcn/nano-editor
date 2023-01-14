@@ -40,7 +40,8 @@ jobs:
         CHANGES_NCURSES="$(git log -1 --pretty=%B)"
         cd ..
         rm -rf nano ncurses
-        LAST_RELEASE=$( wget -q https://api.github.com/repos/okibcn/nano-editor/releases/latest -O - | awk -F \" -v RS="," '/published_at/ {print $(NF-1)}' )
+        LAST_RELEASE=$( wget -q https://api.github.com/repos/okibcn/nano-editor/releases/latest -O - | awk -F \" -v RS="," '/published_at/ {print $(NF-1)}' ) \
+          || LAST_RELEASE="2000.01.01T00:00:00Z"
 
         if [[ $LAST_NANO>$LAST_RELEASE ]]; then 
           echo "NEW NANO SOURCE!!!!"
