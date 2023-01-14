@@ -2,7 +2,7 @@
 # This is free software, licensed under the GNU General Public License v3.0
 # See /LICENSE for more information.
 # https://github.com/okibcn/nano-editor
-# Description: Build OpenWrt image with full config
+# Description: Builds nano for Windows from a Debian Linux
 
 name: Xbuild4Windows
 on: 
@@ -26,12 +26,6 @@ jobs:
     steps:
     - name: "⏬ Checkout repository"
       uses: actions/checkout@v3
-
-    # - name: "🐞 Debug session"
-    #   uses: mxschmitt/action-tmate@v3
-    #   if: github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true'
-        ## More info at https://til.simonwillison.net/github-actions/debug-tmate
-        ## or https://github.com/mxschmitt/action-tmate 
 
     - name: "✔️ Pre-build checks"
       run: |
@@ -83,7 +77,6 @@ jobs:
 
         # sudo -E apt -qq update && sudo apt upgrade -y
         sudo -E apt -qq install -y mingw-w64 autoconf automake autopoint gcc gettext git groff make pkg-config texinfo p7zip-full
-        
 
     # - name: Set up MinGW
     #   uses: egor-tensin/setup-mingw@v2
@@ -92,7 +85,7 @@ jobs:
       uses: mxschmitt/action-tmate@v3
       if: github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true'
         ## More info at https://til.simonwillison.net/github-actions/debug-tmate
-        ## or https://github.com/mxschmitt/action-tmate 
+        ##           or https://github.com/mxschmitt/action-tmate 
 
     - name: "⏬ Download Sources"
       run: |
@@ -131,25 +124,6 @@ jobs:
         sed -i -e "s,Compiled options,Using ${NCURSES}\\\\n Compiled options," src/nano.c
         sed -i -e "s|git describe --tags 2>/dev/null|git describe --tags 2>/dev/null\` for Windows, build \`git rev-list --count HEAD|" src/Makefile.am
 
-    - name: "⚙️ Build Ncurses Toolchain"
-      run: |
-        cd nano
-        ##########################
-        ##                        ##
-        ##    BUILD TOOLCHAIN     ##
-        ##                        ##
-        ##########################
-
-        # Build ncurses toolchain for local host 
-        mkdir -p build/ncurses
-        cd build/ncurses/
-        ../../ncurses/configure --prefix="$(pwd)"  \
-          --enable-{widec,sp-funcs,termcap,term-driver,interop}  \
-          --disable-{shared,database,rpath,home-terminfo,db-install,getcap,echo}  \
-          --without-{progs,ada,cxx-binding,manpages,pthread,debug,tests,libtool} || exit 1
-        make -j$(($(nproc)*2)) || exit 1
-        cd ../..
-
     - name: "⚙️ Build for Windows 64 bits"
       run: |
         cd nano
@@ -160,39 +134,41 @@ jobs:
         ##########################
 
         ARCH="x86_64"
-        TOOLCHAIN="${ARCH}-w64-mingw32"
-        OUTDIR="$(pwd)/pkg_${TOOLCHAIN}"
 
-        # cross Build ncurses for destination host 
-        cd build/ncurses/
-        export CFLAGS="-O2 -g3"
-        unset CPPFLAGS 
-        export LDFLAGS="-static-libgcc"
-        find . -type f  -name '*.*' | xargs rm -rf
-        rm Makefile -rf
-        ../../ncurses/configure --prefix="${OUTDIR}"  \
-          --enable-{widec,sp-funcs,termcap,term-driver,interop}  \
-          --disable-{shared,database,rpath,home-terminfo,db-install,getcap,echo}  \
-          --without-{progs,ada,cxx-binding,manpages,pthread,debug,tests,libtool}  --host="${TOOLCHAIN}"  || exit 1
-        make -j$(($(nproc)*2)) || exit 1
-        make install || exit 1
-        cd ../..
+          TARGET="${ARCH}-w64-mingw32"
+          OUTDIR="$(pwd)/pkg_${TARGET}"
 
-        # Build nano
-        mkdir -p build/nano
-        cd build/nano
-        rm * -rf
-        export CFLAGS="-O2 -g3 -flto"
-        export CPPFLAGS="-D__USE_MINGW_ANSI_STDIO -I\"${OUTDIR}/include\""
-        export LDFLAGS="-L\"${OUTDIR}/lib/\" -static -flto -static-libgcc"
-        export NCURSESW_CFLAGS="-I\"${OUTDIR}/include/ncursesw\" -DNCURSES_STATIC"
-        export NCURSESW_LIBS="-lncursesw"
-        ../../configure --host="${TOOLCHAIN}" --prefix="${OUTDIR}"  \
-          --enable-utf8 --disable-{nls,speller} \
-          --sysconfdir="C:\ProgramData"  || exit 1
-        make -j$(($(nproc)*2)) || exit 1
-        make install-strip || exit 1
-        cd ../..
+          export CFLAGS="-O2 -g3"
+          unset CPPFLAGS 
+          export LDFLAGS="-static-libgcc"
+
+          # cross Build ncurses for target host 
+          mkdir -p "$(pwd)/build_${TARGET}/ncurses"
+          cd "$(pwd)/build_${TARGET}/ncurses"
+          rm -rf *
+          ../../ncurses/configure --prefix="${OUTDIR}"  \
+            --enable-{widec,sp-funcs,termcap,term-driver,interop}  \
+            --disable-{shared,database,rpath,home-terminfo,db-install,getcap,echo}  \
+            --without-{progs,ada,cxx-binding,manpages,pthread,debug,tests,libtool}  \
+            --build="$(gcc -dumpmachine)" --host="${TARGET}" || exit 1
+          make -j$(($(nproc)*2)) && make install || exit 1
+          cd ../..
+
+          # Build nano
+          mkdir -p "$(pwd)/build_${TARGET}/nano"
+          cd "$(pwd)/build_${TARGET}/nano"
+          rm -rf *
+          export CFLAGS="-O2 -g3 -flto"
+          export CPPFLAGS="-D__USE_MINGW_ANSI_STDIO -I\"${OUTDIR}/include\""
+          export LDFLAGS="-L\"${OUTDIR}/lib/\" -static -flto -static-libgcc"
+          export NCURSESW_CFLAGS="-I\"${OUTDIR}/include/ncursesw\" -DNCURSES_STATIC"
+          export NCURSESW_LIBS="-lncursesw"
+          # export LIBS="-lshlwapi -lbcrypt"
+          ../../configure --host="${TARGET}" --prefix="${OUTDIR}"  \
+            --enable-utf8 --disable-{nls,speller} \
+            --sysconfdir="C:\ProgramData"  || exit 1
+          make -j$(($(nproc)*2)) && make install-strip || exit 1
+          cd ../..
 
     - name: "⚙️ Build for Windows 32 bits"
       run: |
@@ -204,38 +180,40 @@ jobs:
         ############################
 
         ARCH="i686"
-        TOOLCHAIN="${ARCH}-w64-mingw32"
-        OUTDIR="$(pwd)/pkg_${TOOLCHAIN}"
 
-        # cross Build ncurses for destination host 
-        cd build/ncurses/
+        TARGET="${ARCH}-w64-mingw32"
+        OUTDIR="$(pwd)/pkg_${TARGET}"
+
         export CFLAGS="-O2 -g3"
         unset CPPFLAGS 
         export LDFLAGS="-static-libgcc"
-        find . -type f  -name '*.*' | xargs rm -rf
-        rm Makefile -rf
+
+        # cross Build ncurses for destination host 
+        mkdir -p "$(pwd)/build_${TARGET}/ncurses"
+        cd "$(pwd)/build_${TARGET}/ncurses"
+        rm -rf *
         ../../ncurses/configure --prefix="${OUTDIR}"  \
           --enable-{widec,sp-funcs,termcap,term-driver,interop}  \
           --disable-{shared,database,rpath,home-terminfo,db-install,getcap,echo}  \
-          --without-{progs,ada,cxx-binding,manpages,pthread,debug,tests,libtool}  --host="${TOOLCHAIN}" || exit 1
-        make -j$(($(nproc)*2)) || exit 1
-        make install || exit 1
+          --without-{progs,ada,cxx-binding,manpages,pthread,debug,tests,libtool}  \
+          --build="$(gcc -dumpmachine)" --host="${TARGET}" || exit 1
+        make -j$(($(nproc)*2)) && make install || exit 1
         cd ../..
 
         # Build nano
-        mkdir -p build/nano
-        cd build/nano
-        rm * -rf
+        mkdir -p "$(pwd)/build_${TARGET}/nano"
+        cd "$(pwd)/build_${TARGET}/nano"
+        rm -rf *
         export CFLAGS="-O2 -g3 -flto"
         export CPPFLAGS="-D__USE_MINGW_ANSI_STDIO -I\"${OUTDIR}/include\""
         export LDFLAGS="-L\"${OUTDIR}/lib/\" -static -flto -static-libgcc"
         export NCURSESW_CFLAGS="-I\"${OUTDIR}/include/ncursesw\" -DNCURSES_STATIC"
         export NCURSESW_LIBS="-lncursesw"
-        ../../configure --host="${TOOLCHAIN}" --prefix="${OUTDIR}"  \
+        # export LIBS="-lshlwapi -lbcrypt"
+        ../../configure --host="${TARGET}" --prefix="${OUTDIR}"  \
           --enable-utf8 --disable-{nls,speller} \
-          --sysconfdir="C:\ProgramData"   || exit 1
-        make -j$(($(nproc)*2))  || exit 1
-        make install-strip  || exit 1
+          --sysconfdir="C:\ProgramData"  || exit 1
+        make -j$(($(nproc)*2)) && make install-strip || exit 1
         cd ../..
 
     - name: "📦 Create Package"
@@ -247,7 +225,7 @@ jobs:
         ##                          ##
         ############################
 
-        NEWTAG="$(git describe --tags 2>/dev/null | sed "s/.\{10\}$//")-$(git rev-list --count HEAD)"
+        NANO_VERSION="$(git describe --tags 2>/dev/null | sed "s/.\{10\}$//")-$(git rev-list --count HEAD)"
         strip -s pkg_{i686,x86_64}-w64-mingw32/bin/nano.exe
         cp doc/sample.nanorc.in .nanorc
         7z a -aoa -mmt"$(nproc)" --  \
@@ -258,7 +236,7 @@ jobs:
           
         cd nano
         NEWTAG="$(git describe --tags 2>/dev/null | sed "s/.\{10\}$//")-$(git rev-list --count HEAD)"
-        echo "NEWTAG=$NEWTAG" >>$GITHUB_ENV
+        echo "NEWTAG=$NANO_VERSION" >>$GITHUB_ENV
 
 
     - name: "👍 Upload release"
