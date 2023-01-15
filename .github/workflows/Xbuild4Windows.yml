@@ -268,4 +268,4 @@ jobs:
         tag_name: ${{ env.NEWTAG }}
         files: nano/*.7z
         body: |
-          `${{ env.BODY }}`
+          ${{ env.BODY }}
