@@ -64,11 +64,6 @@ build () {
 git clone git://git.savannah.gnu.org/nano.git
 cd nano
 git clone https://github.com/mirror/ncurses.git
-git log -n 1
-cd ncurses
-git log -n 1
-NCURSES=$(git show -s --format=%s)
-cd ..
 ./autogen.sh
 
  ##########################
@@ -113,7 +108,10 @@ sed -i 's/_..ONLY/& | _O_BINARY/g' ./src/files.c
 sed -i 's/_..ONLY/& | _O_BINARY/g' ./src/text.c
 
 # Adding static ncurses revision and patch level to nano version info.
-sed -i "s,Compiled options,Using ${NCURSES}\\\\n Compiled options," src/nano.c
+cd ncurses
+NCURSES=$(git show -s --format=%s)
+cd ..
+sed -i 's|Compiled options|Using '"${NCURSES}"'\\\\n &|' src/nano.c
 sed -i '/SOMETHING = "REVISION/cSOMETHING = "REVISION \\"`git describe|rev|cut -c10-|rev``git rev-list --count HEAD` for Windows\\""' src/Makefile.am
 
  ############################
