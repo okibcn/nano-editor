@@ -1,7 +1,13 @@
 #!/bin/bash -e
 
+# RANDOM NOTES, NOT PART OF THE PROJECT
+
+
 # git clone https://github.com/lhmouse/nano-win.git
 # cd nano-win
+
+# sed quick reference https://anaturb.net/sed.htm
+
 
 # last commit name
 git show -s --format=%s

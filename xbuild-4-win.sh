@@ -10,12 +10,57 @@
 # sudo -E apt -qq update && sudo apt upgrade -y
 # sudo -E apt -qq install -y autoconf automake autopoint gcc mingw-w64 gettext git groff make pkg-config texinfo p7zip-full
 
+ ##########################
+##                        ##
+##  BUILD FOR x86_64|i686 ##
+##                        ##
+ ##########################
+build () {
+    ARCH="${1:-x86_64}"
+    BUILD="$(gcc -dumpmachine)"
+    TARGET="${ARCH}-w64-mingw32"
+    OUTDIR="$(pwd)/pkg_${TARGET}"
+
+    export CFLAGS="-O2 -g3 -flto"
+    export CPPFLAGS="-D__USE_MINGW_ANSI_STDIO -I\"${OUTDIR}/include\""
+    export LDFLAGS="-L\"${OUTDIR}/lib/\" -static -flto -static-libgcc"
+    export NCURSESW_CFLAGS="-I\"${OUTDIR}/include/ncursesw\" -DNCURSES_STATIC"
+    export NCURSESW_LIBS="-lncursesw"
+    export LIBS="-lshlwapi" # -lbcrypt"
+
+    # cross Build ncurses for destination host 
+    mkdir -p "$(pwd)/build_${TARGET}/ncurses"
+    cd "$(pwd)/build_${TARGET}/ncurses"
+    rm -rf *
+    ../../ncurses/configure --prefix="${OUTDIR}"  \
+      --enable-{widec,sp-funcs,termcap,term-driver,interop}  \
+      --disable-{shared,database,rpath,home-terminfo,db-install,getcap,echo}  \
+      --without-{progs,ada,cxx-binding,manpages,pthread,debug,tests,libtool}  \
+      --build="${BUILD}" --host="${TARGET}" #|| exit 1
+    make -j$(($(nproc)*2)) && make install #|| exit 1
+    cd ../..
+
+    # Build nano
+    [ "${ARCH}" = "x86_64" ] && bits="64" || bits="32"
+    sed -i 's/Windows.*/Windows '"${bits}"' bits\\""/' src/Makefile.am
+    mkdir -p "$(pwd)/build_${TARGET}/nano"
+    cd "$(pwd)/build_${TARGET}/nano"
+    rm -rf *
+    ../../configure --host="${TARGET}" --prefix="${OUTDIR}"  \
+      --enable-utf8 --disable-{nls,speller} \
+      --sysconfdir="C:\\ProgramData"  # || exit 1
+    make -j$(($(nproc)*2)) && make install-strip # || exit 1
+    cd ../..
+    # cp -f ${OUTDIR}/bin/nano.exe ~/desktop
+    echo "Successfully build GNU Nano $(git describe|rev|cut -c11-|rev) build $(git rev-list --count HEAD) for Windows $bits bits"
+}
 
  ##########################
 ##                        ##
 ##    DOWNLOAD SOURCES    ##
 ##                        ##
  ##########################
+
 git clone git://git.savannah.gnu.org/nano.git
 cd nano
 git clone https://github.com/mirror/ncurses.git
@@ -45,117 +90,39 @@ sed -i 's|vt220||g' ./src/nano.c
 # Fix homedir detection
 sed -i 's|\"HOME\"|"USERPROFILE\"|g' ./src/utils.c
 
-# Modify path expansion with backslashes
-sed -i -e "s,free(tilded);,free(tilded);\n\tfor(tilded = retval; \*tilded; ++tilded) if(\*tilded == '\\\\\\\\') \*tilded = '/';, ;
-           s,path\[i\] != '/',path[i] != '/' \&\& path[i] != '\\\\\\\\'," src/files.c
-
 # Modify temporal path from linux to windows
 sed -i 's|TMPDIR|TEMP|g' ./src/files.c
 
+# Modify path expansion with backslashes
+sed -i "/free(tilded)/a\
+  \\\\tfor(tilded = retval; \*tilded; ++tilded) if(\*tilded == '\\\\\\\\') \*tilded = '/';
+  s|path\[i\] != '/'|path[i] != '/' \&\& path[i] != '\\\\\\\\'|" src/files.c
+
 # Solve SHIFT, ALT and CTRL keys
-sed -i "s,waiting_codes = 1;,waiting_codes = 0;\n\
-    if (GetAsyncKeyState(VK_LMENU) < 0)	key_buffer[waiting_codes++] = ESC_CODE;\n\
-    key_buffer[waiting_codes++] = input;," src/winio.c
-sed -i '/TIOCLINUX/c \\tmodifiers \= 0; \
-    if(GetAsyncKeyState(VK_SHIFT) < 0) modifiers |\= 0x01; \
-    if(GetAsyncKeyState(VK_CONTROL) < 0) modifiers |\= 0x04; \
-    if(GetAsyncKeyState(VK_LMENU) < 0) modifiers |\= 0x08; \
-    if (!mute_modifiers) {' src/winio.c
+sed -i 's,waiting_codes = 1;,waiting_codes = 0;\
+    if (GetAsyncKeyState(VK_LMENU) < 0)	key_buffer[waiting_codes++] = ESC_CODE;\
+    key_buffer[waiting_codes++] = input;,
+    /TIOCLINUX/c \\tmodifiers \= 0;\
+    if(GetAsyncKeyState(VK_SHIFT) < 0) modifiers |\= 0x01;\
+    if(GetAsyncKeyState(VK_CONTROL) < 0) modifiers |\= 0x04;\
+    if(GetAsyncKeyState(VK_LMENU) < 0) modifiers |\= 0x08;\
+    if \(\!mute_modifiers) \{' src/winio.c
 
 # default open() files in binary mode as it does in linux
-sed -i 's/ONLY/ONLY | _O_BINARY/g' ./src/files.c
-sed -i 's/ONLY/ONLY | _O_BINARY/g' ./src/text.c
+sed -i 's/_..ONLY/& | _O_BINARY/g' ./src/files.c
+sed -i 's/_..ONLY/& | _O_BINARY/g' ./src/text.c
 
 # Adding static ncurses revision and patch level to nano version info.
-sed -i -e "s,Compiled options,Using ${NCURSES}\\\\n Compiled options," src/nano.c
-sed -i -e "s|git describe --tags 2>/dev/null|git describe --tags 2>/dev/null\` for Windows, build \`git rev-list --count HEAD|" src/Makefile.am
-
- ##########################
-##                        ##
-##   BUILD FOR x86_64     ##
-##                        ##
- ##########################
-
-ARCH="x86_64"
-
-TARGET="${ARCH}-w64-mingw32"
-OUTDIR="$(pwd)/pkg_${TARGET}"
-
-export CFLAGS="-O2 -g3"
-unset CPPFLAGS 
-export LDFLAGS="-static-libgcc"
-
-# cross Build ncurses for destination host 
-mkdir -p "$(pwd)/build_${TARGET}/ncurses"
-cd "$(pwd)/build_${TARGET}/ncurses"
-rm -rf *
-../../ncurses/configure --prefix="${OUTDIR}"  \
-  --enable-{widec,sp-funcs,termcap,exp-win32,term-driver,interop}  \
-  --disable-{shared,database,rpath,home-terminfo,db-install,getcap,echo}  \
-  --without-{progs,ada,cxx-binding,manpages,pthread,debug,tests,libtool}  \
-  --build="$(gcc -dumpmachine)" --host="${TARGET}" || exit 1
-make -j$(($(nproc)*2)) && make install || exit 1
-cd ../..
-
-# Build nano
-mkdir -p "$(pwd)/build_${TARGET}/nano"
-cd "$(pwd)/build_${TARGET}/nano"
-rm -rf *
-export CFLAGS="-O2 -g3 -flto"
-export CPPFLAGS="-D__USE_MINGW_ANSI_STDIO -I\"${OUTDIR}/include\""
-export LDFLAGS="-L\"${OUTDIR}/lib/\" -static -flto -static-libgcc"
-export NCURSESW_CFLAGS="-I\"${OUTDIR}/include/ncursesw\" -DNCURSES_STATIC"
-export NCURSESW_LIBS="-lncursesw"
-export LIBS="-lshlwapi" # -lbcrypt"
-../../configure --host="${TARGET}" --prefix="${OUTDIR}"  \
-  --enable-utf8 --disable-{nls,speller} \
-  --sysconfdir="C:\ProgramData"  # || exit 1
-make -j$(($(nproc)*2)) && make install-strip # || exit 1
-cd ../..
+sed -i "s,Compiled options,Using ${NCURSES}\\\\n Compiled options," src/nano.c
+sed -i '/SOMETHING = "REVISION/cSOMETHING = "REVISION \\"`git describe|rev|cut -c10-|rev``git rev-list --count HEAD` for Windows\\""' src/Makefile.am
 
  ############################
 ##                          ##
-## BUILD FOR i686 (32 bits) ##
+## BUILD for 64 and 32 bits ##
 ##                          ##
  ############################
-
-ARCH="i686"
-
-TARGET="${ARCH}-w64-mingw32"
-OUTDIR="$(pwd)/pkg_${TARGET}"
-
-export CFLAGS="-O2 -g3"
-unset CPPFLAGS 
-export LDFLAGS="-static-libgcc"
-
-# cross Build ncurses for destination host 
-mkdir -p "$(pwd)/build_${TARGET}/ncurses"
-cd "$(pwd)/build_${TARGET}/ncurses"
-rm -rf *
-../../ncurses/configure --prefix="${OUTDIR}" \
-  --enable-{widec,sp-funcs,termcap,term-driver,interop}  \
-  --disable-{shared,database,rpath,home-terminfo,db-install,getcap,echo}  \
-  --without-{progs,ada,cxx-binding,manpages,pthread,debug,tests,libtool}  \
-  --build="$(gcc -dumpmachine)" --host="${TARGET}" || exit 1
-make -j$(($(nproc)*2)) && make install || exit 1
-cd ../..
-
-# Build nano
-mkdir -p "$(pwd)/build_${TARGET}/nano"
-cd "$(pwd)/build_${TARGET}/nano"
-rm -rf *
-export CFLAGS="-O2 -g3 -flto"
-export CPPFLAGS="-D__USE_MINGW_ANSI_STDIO -I\"${OUTDIR}/include\""
-export LDFLAGS="-L\"${OUTDIR}/lib/\" -static -flto -static-libgcc"
-export NCURSESW_CFLAGS="-I\"${OUTDIR}/include/ncursesw\" -DNCURSES_STATIC"
-export NCURSESW_LIBS="-lncursesw"
-# export LIBS="-lshlwapi -lbcrypt"
-../../configure --host="${TARGET}" --prefix="${OUTDIR}"  \
-  --enable-utf8 --disable-{nls,speller} \
-  --sysconfdir="C:\ProgramData"  || exit 1
-make -j$(($(nproc)*2)) && make install-strip || exit 1
-cd ../..
-
+build x86_64
+build i686
 
  ############################
 ##                          ##

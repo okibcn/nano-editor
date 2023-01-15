@@ -59,15 +59,20 @@ jobs:
           echo "$CHANGES_NCURSES" >> body.txt
         fi
 
-        [ -f body.txt ] || exit 1
-        BODY=$(<body.txt)
-        echo "BODY<<EOF" >> $GITHUB_ENV
-        echo "$BODY" >> $GITHUB_ENV
-        echo "EOF" >> $GITHUB_ENV
-        exit 0
+        if [ -f body.txt ]; then
+          BODY=$(<body.txt)
+          echo "BODY<<EOF" >> $GITHUB_ENV
+          echo "$BODY" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+          RESULT='New_sources'
+        else
+          RESULT='Nothing_to_do'
+          echo "NO NEW SOURCES. CANCELLING ACTION..."
+        fi
+        echo "RESULT=RESULT" >>$GITHUB_ENV
 
     - name: "👋 Cancelling Actions"
-      if: failure()
+      if:  ${{ env.RESULT == 'Nothing_to_do' }}
       uses: andymckay/cancel-action@0.2
 
     - name: "⏬ Install Toolchain OS Tools"
@@ -102,7 +107,9 @@ jobs:
     - name: "⚙️ Apply Portability Patches"
       run: |
         cd nano
-        # >realpath< function doesn't exist on Windows, which isn't fully POSIX compliant.
+
+        # 1. >realpath< function doesn't exist on Windows, which isn't fully POSIX compliant.
+        # 2. Adding windows.h for supporting keypress detection.
         echo " " >> ./src/definitions.h
         echo "#ifdef _WIN32" >> ./src/definitions.h
         echo "#include <windows.h>"  >> ./src/definitions.h
@@ -115,30 +122,31 @@ jobs:
         # Fix homedir detection
         sed -i 's|\"HOME\"|"USERPROFILE\"|g' ./src/utils.c
 
-        # Modify path expansion with backslashes
-        sed -i -e "s,free(tilded);,free(tilded);\n\tfor(tilded = retval; \*tilded; ++tilded) if(\*tilded == '\\\\\\\\') \*tilded = '/';, ;
-                  s,path\[i\] != '/',path[i] != '/' \&\& path[i] != '\\\\\\\\'," src/files.c
-
         # Modify temporal path from linux to windows
         sed -i 's|TMPDIR|TEMP|g' ./src/files.c
 
+        # Modify path expansion with backslashes
+        sed -i "/free(tilded)/a\
+          \\\\tfor(tilded = retval; \*tilded; ++tilded) if(\*tilded == '\\\\\\\\') \*tilded = '/';
+          s|path\[i\] != '/'|path[i] != '/' \&\& path[i] != '\\\\\\\\'|" src/files.c
+
         # Solve SHIFT, ALT and CTRL keys
-        sed -i "s,waiting_codes = 1;,waiting_codes = 0;\n\
-            if (GetAsyncKeyState(VK_LMENU) < 0)	key_buffer[waiting_codes++] = ESC_CODE;\n\
-            key_buffer[waiting_codes++] = input;," src/winio.c
-        sed -i '/TIOCLINUX/c \\tmodifiers \= 0; \
-            if(GetAsyncKeyState(VK_SHIFT) < 0) modifiers |\= 0x01; \
-            if(GetAsyncKeyState(VK_CONTROL) < 0) modifiers |\= 0x04; \
-            if(GetAsyncKeyState(VK_LMENU) < 0) modifiers |\= 0x08; \
-            if (!mute_modifiers) {' src/winio.c
+        sed -i 's,waiting_codes = 1;,waiting_codes = 0;\
+            if (GetAsyncKeyState(VK_LMENU) < 0)	key_buffer[waiting_codes++] = ESC_CODE;\
+            key_buffer[waiting_codes++] = input;,
+            /TIOCLINUX/c \\tmodifiers \= 0;\
+            if(GetAsyncKeyState(VK_SHIFT) < 0) modifiers |\= 0x01;\
+            if(GetAsyncKeyState(VK_CONTROL) < 0) modifiers |\= 0x04;\
+            if(GetAsyncKeyState(VK_LMENU) < 0) modifiers |\= 0x08;\
+            if \(\!mute_modifiers) \{' src/winio.c
 
         # default open() files in binary mode as it does in linux
-        sed -i 's/ONLY/ONLY | _O_BINARY/g' ./src/files.c
-        sed -i 's/ONLY/ONLY | _O_BINARY/g' ./src/text.c
+        sed -i 's/_..ONLY/& | _O_BINARY/g' ./src/files.c
+        sed -i 's/_..ONLY/& | _O_BINARY/g' ./src/text.c
 
         # Adding static ncurses revision and patch level to nano version info.
-        sed -i -e "s,Compiled options,Using ${NCURSES}\\\\n Compiled options," src/nano.c
-        sed -i -e "s|git describe --tags 2>/dev/null|git describe --tags 2>/dev/null\` for Windows, build \`git rev-list --count HEAD|" src/Makefile.am
+        sed -i "s,Compiled options,Using ${NCURSES}\\\\n Compiled options," src/nano.c
+        sed -i '/SOMETHING = "REVISION/cSOMETHING = "REVISION \\"`git describe|rev|cut -c10-|rev``git rev-list --count HEAD` for Windows\\""' src/Makefile.am
 
     - name: "⚙️ Build for Windows 64 bits"
       run: |
@@ -148,61 +156,18 @@ jobs:
         ##   BUILD FOR x86_64     ##
         ##                        ##
         ##########################
-
         ARCH="x86_64"
 
-          TARGET="${ARCH}-w64-mingw32"
-          OUTDIR="$(pwd)/pkg_${TARGET}"
-
-          export CFLAGS="-O2 -g3"
-          unset CPPFLAGS 
-          export LDFLAGS="-static-libgcc"
-
-          # cross Build ncurses for target host 
-          mkdir -p "$(pwd)/build_${TARGET}/ncurses"
-          cd "$(pwd)/build_${TARGET}/ncurses"
-          rm -rf *
-          ../../ncurses/configure --prefix="${OUTDIR}"  \
-            --enable-{widec,sp-funcs,termcap,term-driver,interop}  \
-            --disable-{shared,database,rpath,home-terminfo,db-install,getcap,echo}  \
-            --without-{progs,ada,cxx-binding,manpages,pthread,debug,tests,libtool}  \
-            --build="$(gcc -dumpmachine)" --host="${TARGET}" || exit 1
-          make -j$(($(nproc)*2)) && make install || exit 1
-          cd ../..
-
-          # Build nano
-          mkdir -p "$(pwd)/build_${TARGET}/nano"
-          cd "$(pwd)/build_${TARGET}/nano"
-          rm -rf *
-          export CFLAGS="-O2 -g3 -flto"
-          export CPPFLAGS="-D__USE_MINGW_ANSI_STDIO -I\"${OUTDIR}/include\""
-          export LDFLAGS="-L\"${OUTDIR}/lib/\" -static -flto -static-libgcc"
-          export NCURSESW_CFLAGS="-I\"${OUTDIR}/include/ncursesw\" -DNCURSES_STATIC"
-          export NCURSESW_LIBS="-lncursesw"
-          # export LIBS="-lshlwapi -lbcrypt"
-          ../../configure --host="${TARGET}" --prefix="${OUTDIR}"  \
-            --enable-utf8 --disable-{nls,speller} \
-            --sysconfdir="C:\ProgramData"  || exit 1
-          make -j$(($(nproc)*2)) && make install-strip || exit 1
-          cd ../..
-
-    - name: "⚙️ Build for Windows 32 bits"
-      run: |
-        cd nano
-        ############################
-        ##                          ##
-        ## BUILD FOR i686 (32 bits) ##
-        ##                          ##
-        ############################
-
-        ARCH="i686"
-
+        BUILD="$(gcc -dumpmachine)"
         TARGET="${ARCH}-w64-mingw32"
         OUTDIR="$(pwd)/pkg_${TARGET}"
 
-        export CFLAGS="-O2 -g3"
-        unset CPPFLAGS 
-        export LDFLAGS="-static-libgcc"
+        export CFLAGS="-O2 -g3 -flto"
+        export CPPFLAGS="-D__USE_MINGW_ANSI_STDIO -I\"${OUTDIR}/include\""
+        export LDFLAGS="-L\"${OUTDIR}/lib/\" -static -flto -static-libgcc"
+        export NCURSESW_CFLAGS="-I\"${OUTDIR}/include/ncursesw\" -DNCURSES_STATIC"
+        export NCURSESW_LIBS="-lncursesw"
+        export LIBS="-lshlwapi" # -lbcrypt"
 
         # cross Build ncurses for destination host 
         mkdir -p "$(pwd)/build_${TARGET}/ncurses"
@@ -212,23 +177,63 @@ jobs:
           --enable-{widec,sp-funcs,termcap,term-driver,interop}  \
           --disable-{shared,database,rpath,home-terminfo,db-install,getcap,echo}  \
           --without-{progs,ada,cxx-binding,manpages,pthread,debug,tests,libtool}  \
-          --build="$(gcc -dumpmachine)" --host="${TARGET}" || exit 1
+          --build="${BUILD}" --host="${TARGET}" || exit 1
         make -j$(($(nproc)*2)) && make install || exit 1
         cd ../..
 
         # Build nano
+        [ "${ARCH}" = "x86_64" ] && bits="64" || bits="32"
+        sed -i 's/Windows.*/Windows '"${bits}"' bits\\""/' src/Makefile.am
         mkdir -p "$(pwd)/build_${TARGET}/nano"
         cd "$(pwd)/build_${TARGET}/nano"
         rm -rf *
+        ../../configure --host="${TARGET}" --prefix="${OUTDIR}"  \
+          --enable-utf8 --disable-{nls,speller} \
+          --sysconfdir="C:\\ProgramData" || exit 1
+        make -j$(($(nproc)*2)) && make install-strip || exit 1
+
+    - name: "⚙️ Build for Windows 32 bits"
+      run: |
+        cd nano
+        ############################
+        ##                          ##
+        ## BUILD FOR i686 (32 bits) ##
+        ##                          ##
+        ############################
+        ARCH="i686"
+
+        BUILD="$(gcc -dumpmachine)"
+        TARGET="${ARCH}-w64-mingw32"
+        OUTDIR="$(pwd)/pkg_${TARGET}"
+
         export CFLAGS="-O2 -g3 -flto"
         export CPPFLAGS="-D__USE_MINGW_ANSI_STDIO -I\"${OUTDIR}/include\""
         export LDFLAGS="-L\"${OUTDIR}/lib/\" -static -flto -static-libgcc"
         export NCURSESW_CFLAGS="-I\"${OUTDIR}/include/ncursesw\" -DNCURSES_STATIC"
         export NCURSESW_LIBS="-lncursesw"
-        # export LIBS="-lshlwapi -lbcrypt"
+        export LIBS="-lshlwapi" # -lbcrypt"
+
+        # cross Build ncurses for destination host 
+        mkdir -p "$(pwd)/build_${TARGET}/ncurses"
+        cd "$(pwd)/build_${TARGET}/ncurses"
+        rm -rf *
+        ../../ncurses/configure --prefix="${OUTDIR}"  \
+          --enable-{widec,sp-funcs,termcap,term-driver,interop}  \
+          --disable-{shared,database,rpath,home-terminfo,db-install,getcap,echo}  \
+          --without-{progs,ada,cxx-binding,manpages,pthread,debug,tests,libtool}  \
+          --build="${BUILD}" --host="${TARGET}" || exit 1
+        make -j$(($(nproc)*2)) && make install || exit 1
+        cd ../..
+
+        # Build nano
+        [ "${ARCH}" = "x86_64" ] && bits="64" || bits="32"
+        sed -i 's/Windows.*/Windows '"${bits}"' bits\\""/' src/Makefile.am
+        mkdir -p "$(pwd)/build_${TARGET}/nano"
+        cd "$(pwd)/build_${TARGET}/nano"
+        rm -rf *
         ../../configure --host="${TARGET}" --prefix="${OUTDIR}"  \
           --enable-utf8 --disable-{nls,speller} \
-          --sysconfdir="C:\ProgramData"  || exit 1
+          --sysconfdir="C:\\ProgramData" || exit 1
         make -j$(($(nproc)*2)) && make install-strip || exit 1
         cd ../..
 
@@ -241,7 +246,9 @@ jobs:
         ##                          ##
         ############################
 
-        NANO_VERSION="$(git describe --tags 2>/dev/null | sed "s/.\{10\}$//")-$(git rev-list --count HEAD)"
+        NANO_VERSION="$(git describe|rev|cut -c10-|rev)$(git rev-list --count HEAD)"
+        echo "NEWTAG=$NANO_VERSION" >>$GITHUB_ENV
+
         strip -s pkg_{i686,x86_64}-w64-mingw32/bin/nano.exe
         cp doc/sample.nanorc.in .nanorc
         7z a -aoa -mmt"$(nproc)" --  \
@@ -249,10 +256,6 @@ jobs:
           pkg_{i686,x86_64}-w64-mingw32/{bin/nano.exe,share/{nano,doc}/}  \
           .nanorc  || exit 1
         cd ..
-          
-        cd nano
-        NEWTAG="$(git describe --tags 2>/dev/null | sed "s/.\{10\}$//")-$(git rev-list --count HEAD)"
-        echo "NEWTAG=$NANO_VERSION" >>$GITHUB_ENV
 
 
     - name: "👍 Upload release"
