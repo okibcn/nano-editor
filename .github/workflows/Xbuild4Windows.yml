@@ -64,14 +64,15 @@ jobs:
           echo "BODY<<EOF" >> $GITHUB_ENV
           echo "$BODY" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
+          exit 0
         else
           CANCEL='Nothing_to_do'
           echo "NO NEW SOURCES. CANCELLING ACTION..."
+          echo "CANCEL=Nothing_to_do" >>  $GITHUB_ENV
         fi
-        echo "RESULT=RESULT" >>$GITHUB_ENV
 
     - name: "👋 Cancelling Actions"
-      if:  ${{ env.BODY }} != '' 
+      if:  env.BODY != '' 
       uses: andymckay/cancel-action@0.2
 
     - name: "⏬ Install Toolchain OS Tools"
