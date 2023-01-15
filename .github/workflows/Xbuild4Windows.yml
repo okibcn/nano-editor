@@ -71,6 +71,12 @@ jobs:
           echo "CANCEL=Nothing_to_do" >>  $GITHUB_ENV
         fi
 
+    - name: "🐞 Debug session"
+      uses: mxschmitt/action-tmate@v3
+      if: github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true'
+        ## More info at https://til.simonwillison.net/github-actions/debug-tmate
+        ##           or https://github.com/mxschmitt/action-tmate 
+
     - name: "👋 Cancelling Actions"
       if:  env.BODY != '' 
       uses: andymckay/cancel-action@0.2
@@ -86,12 +92,6 @@ jobs:
 
     # - name: Set up MinGW
     #   uses: egor-tensin/setup-mingw@v2
-
-    - name: "🐞 Debug session"
-      uses: mxschmitt/action-tmate@v3
-      if: github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true'
-        ## More info at https://til.simonwillison.net/github-actions/debug-tmate
-        ##           or https://github.com/mxschmitt/action-tmate 
 
     - name: "⏬ Download Sources"
       run: |
