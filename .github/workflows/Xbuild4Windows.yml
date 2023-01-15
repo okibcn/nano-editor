@@ -152,7 +152,8 @@ jobs:
         sed -i 's/O_..ONLY/& | _O_BINARY/g' ./src/text.c
 
         # Adding static ncurses revision and patch level to nano version info.
-        LAST_VERSION="$(wget -q https://api.github.com/repos/okibcn/nano-editor/releases/latest -O - | awk -F \" -v RS="," '/tag_name/ {print $(NF-1)}')"
+        LAST_VERSION="$(wget -q https://api.github.com/repos/okibcn/nano-editor/releases/latest -O - | awk -F \" -v RS="," '/tag_name/ {print $(NF-1)}')" \
+          || echo "FIRST RELEASE!!!!"
         NANO_VERSION="$(git describe --tags 2>/dev/null | sed "s/.\{10\}$//")-$(git rev-list --count HEAD)"
         LAST_BASEVERSION="$(echo $LAST_VERSION | awk -F .  '{print $1"."$2}')"  # last version without the subbuild
         if [ "${NANO_VERSION}" == "${LAST_BASEVERSION}" ]; then
