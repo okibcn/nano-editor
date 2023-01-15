@@ -51,7 +51,7 @@ build () {
       --sysconfdir="C:\\ProgramData"  # || exit 1
     make -j$(($(nproc)*2)) && make install-strip # || exit 1
     cd ../..
-    # cp -f ${OUTDIR}/bin/nano.exe ~/desktop
+    cp -f ${OUTDIR}/bin/nano.exe ~/desktop
     echo "Successfully build GNU Nano $(git describe|rev|cut -c11-|rev) build $(git rev-list --count HEAD) for Windows $bits bits"
 }
 
@@ -94,14 +94,22 @@ sed -i "/free(tilded)/a\
   s|path\[i\] != '/'|path[i] != '/' \&\& path[i] != '\\\\\\\\'|" src/files.c
 
 # Solve SHIFT, ALT and CTRL keys
-sed -i 's,waiting_codes = 1;,waiting_codes = 0;\
+sed -i 's/waiting_codes = 1;/waiting_codes = 0;\
     if (GetAsyncKeyState(VK_LMENU) < 0)	key_buffer[waiting_codes++] = ESC_CODE;\
-    key_buffer[waiting_codes++] = input;,
+    key_buffer[waiting_codes++] = input;/
+
     /TIOCLINUX/c \\tmodifiers \= 0;\
     if(GetAsyncKeyState(VK_SHIFT) < 0) modifiers |\= 0x01;\
     if(GetAsyncKeyState(VK_CONTROL) < 0) modifiers |\= 0x04;\
     if(GetAsyncKeyState(VK_LMENU) < 0) modifiers |\= 0x08;\
     if \(\!mute_modifiers) \{' src/winio.c
+sed  -i '/parse_kbinput/!b
+    :a
+    s/__linux__/_WIN32/;t trail
+    n;ba
+    :trail
+    n;btrail'  src/winio.c
+
 
 # default open() files in binary mode as it does in linux
 sed -i 's/_..ONLY/& | _O_BINARY/g' ./src/files.c
