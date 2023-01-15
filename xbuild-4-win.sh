@@ -111,7 +111,7 @@ sed -i 's/_..ONLY/& | _O_BINARY/g' ./src/text.c
 cd ncurses
 NCURSES=$(git show -s --format=%s)
 cd ..
-sed -i 's|Compiled options|Using '"${NCURSES}"'\\\\n &|' src/nano.c
+sed -i 's|Compiled options|Using '"${NCURSES}"'\\n &|' src/nano.c
 sed -i '/SOMETHING = "REVISION/cSOMETHING = "REVISION \\"`git describe|rev|cut -c10-|rev``git rev-list --count HEAD` for Windows\\""' src/Makefile.am
 
  ############################
