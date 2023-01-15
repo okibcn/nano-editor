@@ -51,7 +51,7 @@ build () {
       --sysconfdir="C:\\ProgramData"  # || exit 1
     make -j$(($(nproc)*2)) && make install-strip # || exit 1
     cd ../..
-    cp -f ${OUTDIR}/bin/nano.exe ~/desktop
+    # cp -f ${OUTDIR}/bin/nano.exe ~/desktop
     echo "Successfully build GNU Nano $(git describe|rev|cut -c11-|rev) build $(git rev-list --count HEAD) for Windows $bits bits"
 }
 
@@ -116,11 +116,20 @@ sed -i 's/_..ONLY/& | _O_BINARY/g' ./src/files.c
 sed -i 's/_..ONLY/& | _O_BINARY/g' ./src/text.c
 
 # Adding static ncurses revision and patch level to nano version info.
+LAST_VERSION="$(wget -q https://api.github.com/repos/okibcn/nano-editor/releases/latest -O - | awk -F \" -v RS="," '/tag_name/ {print $(NF-1)}')"
+NANO_VERSION="$(git describe --tags 2>/dev/null | sed "s/.\{10\}$//")-$(git rev-list --count HEAD)"
+LAST_BASEVERSION="$(echo $LAST_VERSION | awk -F .  '{print $1"."$2}')"  # last version without the subbuild
+if [ "${NANO_VERSION}" == "${LAST_BASEVERSION}" ]; then
+  # This is a new Windows build based on the same nano build, probably because there is a new ncurses patch
+  SUBBUILD="$(echo $LAST_VERSION | awk -F .  '{print $3}')"
+  ((SUBBUILD=SUBBUILD+1))
+  NANO_VERSION="${NANO_VERSION}.${SUBBUILD}"
+fi
 cd ncurses
 NCURSES=$(git show -s --format=%s)
 cd ..
 sed -i 's|Compiled options|Using '"${NCURSES}"'\\n &|' src/nano.c
-sed -i '/SOMETHING = "REVISION/cSOMETHING = "REVISION \\"`git describe|rev|cut -c10-|rev``git rev-list --count HEAD` for Windows\\""' src/Makefile.am
+sed -i '/SOMETHING = "REVISION/cSOMETHING = "REVISION \\"'"${NANO_VERSION}"' for Windows\\""' src/Makefile.am
 
  ############################
 ##                          ##
@@ -136,7 +145,6 @@ build i686
 ##                          ##
  ############################
 
-NANO_VERSION="$(git describe --tags 2>/dev/null | sed "s/.\{10\}$//")-$(git rev-list --count HEAD)"
 strip -s pkg_{i686,x86_64}-w64-mingw32/bin/nano.exe
 cp doc/sample.nanorc.in .nanorc
 7z a -aoa -mmt"$(nproc)" --  \

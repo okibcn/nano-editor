@@ -151,11 +151,22 @@ jobs:
         sed -i 's/_..ONLY/& | _O_BINARY/g' ./src/text.c
 
         # Adding static ncurses revision and patch level to nano version info.
+        LAST_VERSION="$(wget -q https://api.github.com/repos/okibcn/nano-editor/releases/latest -O - | awk -F \" -v RS="," '/tag_name/ {print $(NF-1)}')"
+        NANO_VERSION="$(git describe --tags 2>/dev/null | sed "s/.\{10\}$//")-$(git rev-list --count HEAD)"
+        LAST_BASEVERSION="$(echo $LAST_VERSION | awk -F .  '{print $1"."$2}')"  # last version without the subbuild
+        if [ "${NANO_VERSION}" == "${LAST_BASEVERSION}" ]; then
+          # This is a new Windows build based on the same nano build, probably because there is a new ncurses patch
+          SUBBUILD="$(echo $LAST_VERSION | awk -F .  '{print $3}')"
+          ((SUBBUILD=SUBBUILD+1))
+          NANO_VERSION="${NANO_VERSION}.${SUBBUILD}"
+        fi
         cd ncurses
         NCURSES=$(git show -s --format=%s)
         cd ..
         sed -i 's|Compiled options|Using '"${NCURSES}"'\\n &|' src/nano.c
-        sed -i '/SOMETHING = "REVISION/cSOMETHING = "REVISION \\"`git describe|rev|cut -c10-|rev``git rev-list --count HEAD` for Windows\\""' src/Makefile.am
+        sed -i '/SOMETHING = "REVISION/cSOMETHING = "REVISION \\"'"${NANO_VERSION}"' for Windows\\""' src/Makefile.am
+        echo "NANO_VERSION=$NANO_VERSION" >>$GITHUB_ENV
+
 
     - name: "⚙️ Build for Windows 64 bits"
       run: |
@@ -255,13 +266,11 @@ jobs:
         ##                          ##
         ############################
 
-        NANO_VERSION="$(git describe|rev|cut -c10-|rev)$(git rev-list --count HEAD)"
-        echo "NEWTAG=$NANO_VERSION" >>$GITHUB_ENV
-
+     
         strip -s pkg_{i686,x86_64}-w64-mingw32/bin/nano.exe
         cp doc/sample.nanorc.in .nanorc
         7z a -aoa -mmt"$(nproc)" --  \
-          "nano-editor_${NANO_VERSION}.7z"  \
+          "nano-editor_${{ env.NANO_VERSION }}.7z"  \
           pkg_{i686,x86_64}-w64-mingw32/{bin/nano.exe,share/{nano,doc}/}  \
           .nanorc  || exit 1
         cd ..
@@ -272,7 +281,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ env.NEWTAG }}
+        tag_name: ${{ env.NANO_VERSION }}
         files: nano/*.7z
         body: |
           ${{ env.BODY }}
