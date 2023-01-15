@@ -64,15 +64,14 @@ jobs:
           echo "BODY<<EOF" >> $GITHUB_ENV
           echo "$BODY" >> $GITHUB_ENV
           echo "EOF" >> $GITHUB_ENV
-          RESULT='New_sources'
         else
-          RESULT='Nothing_to_do'
+          CANCEL='Nothing_to_do'
           echo "NO NEW SOURCES. CANCELLING ACTION..."
         fi
         echo "RESULT=RESULT" >>$GITHUB_ENV
 
     - name: "👋 Cancelling Actions"
-      if:  ${{ env.RESULT == 'Nothing_to_do' }}
+      if:  ${{ env.BODY != '' }}
       uses: andymckay/cancel-action@0.2
 
     - name: "⏬ Install Toolchain OS Tools"
@@ -145,7 +144,10 @@ jobs:
         sed -i 's/_..ONLY/& | _O_BINARY/g' ./src/text.c
 
         # Adding static ncurses revision and patch level to nano version info.
-        sed -i "s,Compiled options,Using ${NCURSES}\\\\n Compiled options," src/nano.c
+        cd ncurses
+        NCURSES=$(git show -s --format=%s)
+        cd ..
+        sed -i 's|Compiled options|Using '"${NCURSES}"'\\\\n &|' src/nano.c
         sed -i '/SOMETHING = "REVISION/cSOMETHING = "REVISION \\"`git describe|rev|cut -c10-|rev``git rev-list --count HEAD` for Windows\\""' src/Makefile.am
 
     - name: "⚙️ Build for Windows 64 bits"
