@@ -45,7 +45,7 @@ jobs:
 
         if [[ $LAST_NANO>$LAST_RELEASE ]]; then 
           echo "NEW NANO SOURCE!!!!"
-          echo "**NANO CHAGES**" > body.txt
+          echo "**NANO CHANGES**" > body.txt
           echo >> body.txt
           echo "$CHANGES_NANO" >> body.txt
           echo >> body.txt
@@ -70,12 +70,6 @@ jobs:
           echo "CANCEL=true" >>  $GITHUB_ENV
         fi
 
-    - name: "🐞 Debug session"
-      uses: mxschmitt/action-tmate@v3
-      if: github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true'
-        ## More info at https://til.simonwillison.net/github-actions/debug-tmate
-        ##           or https://github.com/mxschmitt/action-tmate 
-
     - name: "👋 Cancelling Actions"
       if:  env.CANCEL == 'true' 
       uses: andymckay/cancel-action@0.2
@@ -91,6 +85,12 @@ jobs:
 
     # - name: Set up MinGW
     #   uses: egor-tensin/setup-mingw@v2
+
+    - name: "🐞 Debug session"
+      uses: mxschmitt/action-tmate@v3
+      if: github.event_name == 'workflow_dispatch' && github.event.inputs.debug_enabled == 'true'
+        ## More info at https://til.simonwillison.net/github-actions/debug-tmate
+        ##           or https://github.com/mxschmitt/action-tmate 
 
     - name: "⏬ Download Sources"
       run: |
@@ -127,6 +127,7 @@ jobs:
         # Modify path expansion with backslashes
         sed -i "/free(tilded)/a\
           \\\\tfor(tilded = retval; \*tilded; ++tilded) if(\*tilded == '\\\\\\\\') \*tilded = '/';
+
           s|path\[i\] != '/'|path[i] != '/' \&\& path[i] != '\\\\\\\\'|" src/files.c
 
         # Solve SHIFT, ALT and CTRL keys
@@ -144,11 +145,11 @@ jobs:
             s/__linux__/_WIN32/;t trail
             n;ba
             :trail
-            n;btrail'  src/winio.c
+            n;btrail' src/winio.c
 
         # default open() files in binary mode as it does in linux
-        sed -i 's/_..ONLY/& | _O_BINARY/g' ./src/files.c
-        sed -i 's/_..ONLY/& | _O_BINARY/g' ./src/text.c
+        sed -i 's/O_..ONLY/& | _O_BINARY/g' ./src/files.c
+        sed -i 's/O_..ONLY/& | _O_BINARY/g' ./src/text.c
 
         # Adding static ncurses revision and patch level to nano version info.
         LAST_VERSION="$(wget -q https://api.github.com/repos/okibcn/nano-editor/releases/latest -O - | awk -F \" -v RS="," '/tag_name/ {print $(NF-1)}')"
@@ -165,7 +166,7 @@ jobs:
         cd ..
         sed -i 's|Compiled options|Using '"${NCURSES}"'\\n &|' src/nano.c
         sed -i '/SOMETHING = "REVISION/cSOMETHING = "REVISION \\"'"${NANO_VERSION}"' for Windows\\""' src/Makefile.am
-        echo "NANO_VERSION=$NANO_VERSION" >>$GITHUB_ENV
+        echo "NANO_VERSION=${NANO_VERSION}" >>$GITHUB_ENV
 
 
     - name: "⚙️ Build for Windows 64 bits"
