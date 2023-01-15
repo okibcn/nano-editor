@@ -66,7 +66,6 @@ jobs:
           echo "EOF" >> $GITHUB_ENV
           echo "CANCEL=false" >>  $GITHUB_ENV
         else
-          CANCEL='Nothing_to_do'
           echo "NO NEW SOURCES. CANCELLING ACTION..."
           echo "CANCEL=true" >>  $GITHUB_ENV
         fi
@@ -148,7 +147,7 @@ jobs:
         cd ncurses
         NCURSES=$(git show -s --format=%s)
         cd ..
-        sed -i 's|Compiled options|Using '"${NCURSES}"'\\\\n &|' src/nano.c
+        sed -i 's|Compiled options|Using '"${NCURSES}"'\\n &|' src/nano.c
         sed -i '/SOMETHING = "REVISION/cSOMETHING = "REVISION \\"`git describe|rev|cut -c10-|rev``git rev-list --count HEAD` for Windows\\""' src/Makefile.am
 
     - name: "⚙️ Build for Windows 64 bits"
