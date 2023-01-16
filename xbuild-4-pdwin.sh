@@ -24,16 +24,18 @@ build () {
     OUTDIR="$(pwd)/pkg_${TARGET}"
     export PDCURSES_SRCDIR="$(pwd)/PDCursesMod"
 
-    export CFLAGS="-I\"${PDCURSES_SRCDIR}\" -DPDC_FORCE_UTF8"
-    export LDFLAGS="-L\"${PDCURSES_SRCDIR}/${PDTERM}\" -static -static-libgcc"
-    export NCURSESW_CFLAGS="-I\"${PDCURSES_SRCDIR}\" -DNCURSES_STATIC"
-    export NCURSESW_LIBS="${PDCURSES_SRCDIR}/${PDTERM}/pdcurses.a -lwinmm -lshlwapi"
+    export CFLAGS="-I${PDCURSES_SRCDIR} -DPDC_FORCE_UTF8"
+    export LDFLAGS="-L${PDCURSES_SRCDIR}/${PDTERM} -static -static-libgcc ${PDCURSES_SRCDIR}/${PDTERM}/pdcurses.a"
+    export NCURSESW_CFLAGS="-I${PDCURSES_SRCDIR} -DNCURSES_STATIC"
+    export NCURSESW_LIBS="-lpdcurses -lwinmm -lshlwapi"
     export LIBS="" # -lbcrypt"
 
     # cross Build ncurses for destination host 
     cd "${PDCURSES_SRCDIR}/${PDTERM}"
     make clean
     make -j$(($(nproc)*2)) WIDE=Y UTF8=Y _w${BITS}=Y
+    cp pdcurses.a libncursesw.a
+    cp pdcurses.a libpdcurses.a
     cd ../..
 
     # Build nano
