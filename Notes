@@ -42,3 +42,46 @@ TZ=UTC date +'%Y.%m.%dT%H:%M:%SZ'
 
 
 git describe --tags 2>/dev/null` for Windows, build `git rev-list --count HEAD
+
+
+
+# Compile ncurses
+i686-w64-mingw32-gcc -DHAVE_CONFIG_H -I. -I../../../src -I..  -DLOCALEDIR=\"/home/user/nano/pkg_i686-w64-mingw32/share/locale\" -DSYSCONFDIR=\"C:\ProgramData\" -I../lib -I../../../lib -I"/home/user/nano/pkg_i686-w64-mingw32/include/ncursesw" -DNCURSES_STATIC -D__USE_MINGW_ANSI_STDIO -I"/home/user/nano/pkg_i686-w64-mingw32/include"  -O2 -g3 -flto -Wall -MT nano.o -MD -MP -MF .deps/nano.Tpo -c -o nano.o ../../../src/nano.c
+
+#Link ncurses
+i686-w64-mingw32-gcc  -O2 -g3 -flto -Wall  -L"/home/user/nano/pkg_i686-w64-mingw32/lib/" -static -flto -static-libgcc -o nano.exe browser.o chars.o color.o cut.o files.o global.o help.o history.o move.o nano.o prompt.o rcfile.o search.o text.o utils.o winio.o ../lib/libgnu.a  -pthread -lshlwapi -lncursesw
+
+
+
+make WIDE=Y UTF8=Y _w32=Y demos (this makes all)
+make WIDE=Y UTF8=Y _w64=Y demos (this makes all)
+
+# Compile pdcurses vt
+i686-w64-mingw32-gcc -Wall -Wextra -pedantic -Werror -O2 -fPIC -DPDC_FORCE_UTF8 -I.. -DHAVE_VSNPRINTF -DHAVE_VSSCANF -c ../vt/pdcutil.c
+# Compile pdcurses wincon
+i686-w64-mingw32-gcc -c -Wall -Wextra -pedantic -O3 -I.. -DPDC_FORCE_UTF8 ../vt/pdcutil.c
+# link lib
+i686-w64-mingw32-ar rv libpdcurses.a addch.o addchstr.o ...
+
+# Single source vt
+i686-w64-mingw32-gcc -Wall -Wextra -pedantic -Werror -O2 -fPIC -DPDC_FORCE_UTF8 -I..  -o testcurs.exe ../demos/testcurs.c libpdcurses.a
+# Single source wincon
+i686-w64-mingw32-gcc -Wall -Wextra -pedantic -O3 -I.. -DPDC_FORCE_UTF8 -otestcurs.exe ../demos/testcurs.c pdcurses.a -lwinmm
+# Multi source vt
+i686-w64-mingw32-gcc -Wall -Wextra -pedantic -Werror -O2 -fPIC -DPDC_FORCE_UTF8 -I.. -c  ../demos/tui.c
+i686-w64-mingw32-gcc tui.o tuidemo.o -o tuidemo.exe libpdcurses.a
+# Multi source wincon
+i686-w64-mingw32-gcc -c -Wall -Wextra -pedantic -O3 -I.. -DPDC_FORCE_UTF8 -I../demos -otui.o ../demos/tui.c
+i686-w64-mingw32-gcc  -otuidemo.exe tuidemo.o tui.o pdcurses.a -lwinmm
+
+
+export CFLAGS="-O2 -g3 -flto -DWIN32_LEAN_AND_MEAN -I. -I.. -I../wincon"
+export LDFLAGS="-L../wincon/\" -static -flto -static-libgcc"
+export LIBS="-lpdcurses -lpanel"
+
+x86_64-w64-mingw32-gcc -I/home/user/nano/PDcursesMod -DPDC_FORCE_UTF8 -ombrot.exe mbrot.c /home/user/nano/PDcursesMod/wincon/pdcurses.a -lwinmm
+
+x86_64-w64-mingw32-gcc -I/home/user/nano/PDcursesMod -DPDC_FORCE_UTF8 mbrot.c /home/user/nano/PDcursesMod/wincon/pdcurses.a -lwinmm  -ombrot.exe 
+
+
+x86_64-w64-mingw32-gcc  -I/home/user/nano/PDcursesMod -DPDC_FORCE_UTF8 -D__USE_MINGW_ANSI_STDIO -Wall  -L/home/user/nano/PDcursesMod/wincon -static -static-libgcc -o nano.exe browser.o chars.o color.o cut.o files.o global.o help.o history.o move.o nano.o prompt.o rcfile.o search.o text.o utils.o winio.o ../lib/libgnu.a /home/user/nano/PDcursesMod/wincon/pdcurses.a -pthread -lwinmm -lshlwapi

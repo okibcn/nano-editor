@@ -17,42 +17,37 @@
  ##########################
 build () {
     ARCH="${1:-x86_64}"
+    PDTERM="${2:-wincon}"    # PDCursesMod supports wincon, vt, wingui, sdl1, sdl2
+    [ "${ARCH}" = "x86_64" ] && BITS="64" || BITS="32"
     BUILD="$(gcc -dumpmachine)"
     TARGET="${ARCH}-w64-mingw32"
     OUTDIR="$(pwd)/pkg_${TARGET}"
+    export PDCURSES_SRCDIR="$(pwd)/PDCursesMod"
 
-    export CFLAGS="-O2 -g3 -flto"
-    export CPPFLAGS="-D__USE_MINGW_ANSI_STDIO -I\"${OUTDIR}/include\""
-    export LDFLAGS="-L\"${OUTDIR}/lib/\" -static -flto -static-libgcc"
-    export NCURSESW_CFLAGS="-I\"${OUTDIR}/include/ncursesw\" -DNCURSES_STATIC"
-    export NCURSESW_LIBS="-lncursesw"
-    export LIBS="-lshlwapi" # -lbcrypt"
+    export CFLAGS="-I\"${PDCURSES_SRCDIR}\" -DPDC_FORCE_UTF8"
+    export LDFLAGS="-L\"${PDCURSES_SRCDIR}/${PDTERM}\" -static -static-libgcc"
+    export NCURSESW_CFLAGS="-I\"${PDCURSES_SRCDIR}\" -DNCURSES_STATIC"
+    export NCURSESW_LIBS="${PDCURSES_SRCDIR}/${PDTERM}/pdcurses.a -lwinmm -lshlwapi"
+    export LIBS="" # -lbcrypt"
 
     # cross Build ncurses for destination host 
-    mkdir -p "$(pwd)/build_${TARGET}/ncurses"
-    cd "$(pwd)/build_${TARGET}/ncurses"
-    rm -rf *
-    ../../ncurses/configure --prefix="${OUTDIR}"  \
-      --enable-{widec,sp-funcs,termcap,term-driver,interop}  \
-      --disable-{shared,database,rpath,home-terminfo,db-install,getcap,echo}  \
-      --without-{progs,ada,cxx-binding,manpages,pthread,debug,tests,libtool}  \
-      --build="${BUILD}" --host="${TARGET}" #|| exit 1
-    make -j$(($(nproc)*2)) && make install #|| exit 1
+    cd "${PDCURSES_SRCDIR}/${PDTERM}"
+    make clean
+    make -j$(($(nproc)*2)) WIDE=Y UTF8=Y _w${BITS}=Y
     cd ../..
 
     # Build nano
-    [ "${ARCH}" = "x86_64" ] && bits="64" || bits="32"
-    sed -i 's/Windows.*/Windows '"${bits}"' bits\\""/' src/Makefile.am
+    sed -i 's/Windows.*/Windows '"${BITS}"' bits\\""/' src/Makefile.am
     mkdir -p "$(pwd)/build_${TARGET}/nano"
     cd "$(pwd)/build_${TARGET}/nano"
     rm -rf *
     ../../configure --host="${TARGET}" --prefix="${OUTDIR}"  \
-      --enable-utf8 --disable-{nls,speller} \
+      --enable-{utf8,threads=windows} --disable-{nls,speller} \
       --sysconfdir="C:\\ProgramData"  # || exit 1
     make -j$(($(nproc)*2)) && make install-strip # || exit 1
     cd ../..
     cp -f ${OUTDIR}/bin/nano.exe ~/desktop
-    echo "Successfully build GNU Nano $(git describe|rev|cut -c11-|rev) build $(git rev-list --count HEAD) for Windows $bits bits"
+    echo "Successfully build GNU Nano $(git describe|rev|cut -c11-|rev) build $(git rev-list --count HEAD) for Windows $BITS bits"
 }
 
  ##########################
@@ -63,7 +58,7 @@ build () {
 
 git clone git://git.savannah.gnu.org/nano.git
 cd nano
-git clone https://github.com/mirror/ncurses.git
+git clone https://github.com/Bill-Gray/PDCursesMod.git
 ./autogen.sh
 
  ##########################
@@ -128,13 +123,16 @@ if [ "${NANO_VERSION}" == "${LAST_BASEVERSION}" ]; then
   ((SUBBUILD=SUBBUILD+1))
   NANO_VERSION="${NANO_VERSION}.${SUBBUILD}"
 fi
-cd ncurses
-NCURSES=$(git show -s --format=%s)
+cd PDCursesMod
+CURSES="$(wget -q https://api.github.com/repos/Bill-Gray/PDCursesMod/releases/latest -O - |
+awk -F \" -v RS="," '/tag_name/ {print $(NF-1)}')"
+CURSES="PDCursesMod ${CURSES} build $(git rev-list --count HEAD)"
 cd ..
-sed -i 's|Compiled options|Using '"${NCURSES}"'\\n &|' src/nano.c
+
+sed -i 's|Compiled options|Using '"${CURSES}"'\\n &|' src/nano.c
 sed -i '/SOMETHING = "REVISION/cSOMETHING = "REVISION \\"'"${NANO_VERSION}"' for Windows\\""' src/Makefile.am
-echo "Version Tag: ${NANO_VERSION}"
-echo "NANO_VERSION=${NANO_VERSION}" >>$GITHUB_ENV
+echo -e "GNU nano version Tag: ${NANO_VERSION}\nUsing $CURSES"
+# echo "NANO_VERSION=${NANO_VERSION}" >>$GITHUB_ENV
 
  ############################
 ##                          ##

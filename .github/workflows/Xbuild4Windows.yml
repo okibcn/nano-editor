@@ -167,7 +167,9 @@ jobs:
         cd ..
         sed -i 's|Compiled options|Using '"${NCURSES}"'\\n &|' src/nano.c
         sed -i '/SOMETHING = "REVISION/cSOMETHING = "REVISION \\"'"${NANO_VERSION}"' for Windows\\""' src/Makefile.am
+        echo "Version Tag: ${NANO_VERSION}"
         echo "NANO_VERSION=${NANO_VERSION}" >>$GITHUB_ENV
+
 
 
     - name: "⚙️ Build for Windows 64 bits"
