@@ -1,12 +1,18 @@
 #!/bin/bash -e
 
-# RANDOM NOTES, NOT PART OF THE PROJECT
+# RANDOM NOTES, NOT PART OF THE PROJECT!!!!!!!!!!!!!!!!!
 
 
 # git clone https://github.com/lhmouse/nano-win.git
 # cd nano-win
 
 # sed quick reference https://anaturb.net/sed.htm
+
+# gcc options guide https://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html#Warning-Options 
+
+# PDCurses reference: https://pdcurses.org/docs/USERS.html
+#       https://www.demo2s.com/c/c-doupdate-hdfm.html 
+
 
 
 # last commit name
@@ -53,9 +59,6 @@ i686-w64-mingw32-gcc  -O2 -g3 -flto -Wall  -L"/home/user/nano/pkg_i686-w64-mingw
 
 
 
-make WIDE=Y UTF8=Y _w32=Y demos (this makes all)
-make WIDE=Y UTF8=Y _w64=Y demos (this makes all)
-
 # Compile pdcurses vt
 i686-w64-mingw32-gcc -Wall -Wextra -pedantic -Werror -O2 -fPIC -DPDC_FORCE_UTF8 -I.. -DHAVE_VSNPRINTF -DHAVE_VSSCANF -c ../vt/pdcutil.c
 # Compile pdcurses wincon
@@ -75,9 +78,6 @@ i686-w64-mingw32-gcc -c -Wall -Wextra -pedantic -O3 -I.. -DPDC_FORCE_UTF8 -I../d
 i686-w64-mingw32-gcc  -otuidemo.exe tuidemo.o tui.o pdcurses.a -lwinmm
 
 
-export CFLAGS="-O2 -g3 -flto -DWIN32_LEAN_AND_MEAN -I. -I.. -I../wincon"
-export LDFLAGS="-L../wincon/\" -static -flto -static-libgcc"
-export LIBS="-lpdcurses -lpanel"
 
 x86_64-w64-mingw32-gcc -I/home/user/nano/PDcursesMod -DPDC_FORCE_UTF8 -ombrot.exe mbrot.c /home/user/nano/PDcursesMod/wincon/pdcurses.a -lwinmm
 

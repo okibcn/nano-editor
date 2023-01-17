@@ -16,6 +16,7 @@
 ##                        ##
  ##########################
 build () {
+    cd ~/nano
     ARCH="${1:-x86_64}"
     PDTERM="${2:-wincon}"    # PDCursesMod supports wincon, vt, wingui, sdl1, sdl2
     [ "${ARCH}" = "x86_64" ] && BITS="64" || BITS="32"
@@ -26,17 +27,18 @@ build () {
 
     export CFLAGS="-I${PDCURSES_SRCDIR} -DPDC_FORCE_UTF8"
     export LDFLAGS="-L${PDCURSES_SRCDIR}/${PDTERM} -static -static-libgcc ${PDCURSES_SRCDIR}/${PDTERM}/pdcurses.a"
-    export NCURSESW_CFLAGS="-I${PDCURSES_SRCDIR} -DNCURSES_STATIC"
-    export NCURSESW_LIBS="-lpdcurses -lwinmm -lshlwapi"
+    export NCURSESW_CFLAGS="-I${PDCURSES_SRCDIR} -DNCURSES_STATIC  -DENABLE_MOUSE"
+    export NCURSESW_LIBS="-lpdcurses -lwinmm -lshlwapi -lgdi32 -lcomdlg32"
     export LIBS="" # -lbcrypt"
 
-    # cross Build ncurses for destination host 
+    # cross Build pdcurses for destination host
     cd "${PDCURSES_SRCDIR}/${PDTERM}"
     make clean
-    make -j$(($(nproc)*2)) WIDE=Y UTF8=Y _w${BITS}=Y
+    make -j$(($(nproc)*2)) WIDE=Y UTF8=Y _w${BITS}=Y demos
     cp pdcurses.a libncursesw.a
     cp pdcurses.a libpdcurses.a
-    cd ../..
+    cp pdcurses.a libncurses.a
+        cd ../..
 
     # Build nano
     sed -i 's/Windows.*/Windows '"${BITS}"' bits\\""/' src/Makefile.am
@@ -44,12 +46,15 @@ build () {
     cd "$(pwd)/build_${TARGET}/nano"
     rm -rf *
     ../../configure --host="${TARGET}" --prefix="${OUTDIR}"  \
-      --enable-{utf8,threads=windows} --disable-{nls,speller} \
+      --enable-{utf8,threads=windows,debug} --disable-{nls,speller} \
       --sysconfdir="C:\\ProgramData"  # || exit 1
     make -j$(($(nproc)*2)) && make install-strip # || exit 1
     cd ../..
     cp -f ${OUTDIR}/bin/nano.exe ~/desktop
+    cp -f "${PDCURSES_SRCDIR}/${PDTERM}/"*.exe ~/desktop/demos
+    
     echo "Successfully build GNU Nano $(git describe|rev|cut -c11-|rev) build $(git rev-list --count HEAD) for Windows $BITS bits"
+
 }
 
  ##########################
@@ -76,7 +81,14 @@ echo " " >> ./src/definitions.h
 echo "#ifdef _WIN32" >> ./src/definitions.h
 echo "#include <windows.h>"  >> ./src/definitions.h
 echo "#define realpath(N,R) _fullpath((R),(N),0)" >> ./src/definitions.h
+echo "#define getmouse(A) nc_getmouse((A))" >> ./src/definitions.h
 echo "#endif" >> ./src/definitions.h
+
+# Solve mause detection issue
+sed -i "/undef ENABLE_MOUSE/d"   src/definitions.h
+
+# Solve duplicated definitions ALT-ARROWWS already in PDCursesMod
+sed -i "/0x42[1234]/d" src/definitions.h
 
 # Change default terminal to nothing
 sed -i 's|vt220||g' ./src/nano.c
@@ -94,21 +106,21 @@ sed -i "/free(tilded)/a\
   s|path\[i\] != '/'|path[i] != '/' \&\& path[i] != '\\\\\\\\'|" src/files.c
 
 # Solve SHIFT, ALT and CTRL keys
-sed -i 's/waiting_codes = 1;/waiting_codes = 0;\
-    if (GetAsyncKeyState(VK_LMENU) < 0)	key_buffer[waiting_codes++] = ESC_CODE;\
-    key_buffer[waiting_codes++] = input;/
+# sed -i 's/waiting_codes = 1;/waiting_codes = 0;\
+#     if (GetAsyncKeyState(VK_LMENU) < 0)	key_buffer[waiting_codes++] = ESC_CODE;\
+#     key_buffer[waiting_codes++] = input;/
 
-    /TIOCLINUX/c \\tmodifiers \= 0;\
-    if(GetAsyncKeyState(VK_SHIFT) < 0) modifiers |\= 0x01;\
-    if(GetAsyncKeyState(VK_CONTROL) < 0) modifiers |\= 0x04;\
-    if(GetAsyncKeyState(VK_LMENU) < 0) modifiers |\= 0x08;\
-    if \(\!mute_modifiers) \{' src/winio.c
-sed  -i '/parse_kbinput/!b
-    :a
-    s/__linux__/_WIN32/;t trail
-    n;ba
-    :trail
-    n;btrail' src/winio.c
+#     /TIOCLINUX/c \\tmodifiers \= 0;\
+#     if(GetAsyncKeyState(VK_SHIFT) < 0) modifiers |\= 0x01;\
+#     if(GetAsyncKeyState(VK_CONTROL) < 0) modifiers |\= 0x04;\
+#     if(GetAsyncKeyState(VK_LMENU) < 0) modifiers |\= 0x08;\
+#     if \(\!mute_modifiers) \{' src/winio.c
+# sed  -i '/parse_kbinput/!b
+#     :a
+#     s/__linux__/_WIN32/;t trail
+#     n;ba
+#     :trail
+#     n;btrail' src/winio.c
 
 # default open() files in binary mode as it does in linux
 sed -i 's/O_..ONLY/& | _O_BINARY/g' ./src/files.c

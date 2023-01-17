@@ -129,11 +129,11 @@ if [ "${NANO_VERSION}" == "${LAST_BASEVERSION}" ]; then
   NANO_VERSION="${NANO_VERSION}.${SUBBUILD}"
 fi
 cd ncurses
-NCURSES=$(git show -s --format=%s)
+CURSES=$(git show -s --format=%s)
 cd ..
-sed -i 's|Compiled options|Using '"${NCURSES}"'\\n &|' src/nano.c
+sed -i 's|Compiled options|Using '"${CURSES}"'\\n &|' src/nano.c
 sed -i '/SOMETHING = "REVISION/cSOMETHING = "REVISION \\"'"${NANO_VERSION}"' for Windows\\""' src/Makefile.am
-echo "Version Tag: ${NANO_VERSION}"
+echo -e "GNU nano version Tag: ${NANO_VERSION}\nUsing ${CURSES}"
 echo "NANO_VERSION=${NANO_VERSION}" >>$GITHUB_ENV
 
  ############################
