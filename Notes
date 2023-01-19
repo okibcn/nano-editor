@@ -85,3 +85,57 @@ x86_64-w64-mingw32-gcc -I/home/user/nano/PDcursesMod -DPDC_FORCE_UTF8 mbrot.c /h
 
 
 x86_64-w64-mingw32-gcc  -I/home/user/nano/PDcursesMod -DPDC_FORCE_UTF8 -D__USE_MINGW_ANSI_STDIO -Wall  -L/home/user/nano/PDcursesMod/wincon -static -static-libgcc -o nano.exe browser.o chars.o color.o cut.o files.o global.o help.o history.o move.o nano.o prompt.o rcfile.o search.o text.o utils.o winio.o ../lib/libgnu.a /home/user/nano/PDcursesMod/wincon/pdcurses.a -pthread -lwinmm -lshlwapi
+
+
+
+
+nano main()
+ rcfile do_rcfiles() Search the right nanorc
+  rcfile parse_one_nanorc() Checks if file can be opened
+   rcfile parse_rcfile() parse nanorc for all elements
+    rcfile parse_interface_color() ctreates the trio fg,bg,attr
+     rcfile parse_combination() ctreates the trio fg,bg,attr
+      rcfile color_to_short() color to integer, including 
+       rcfile closest_index_color() code color to the nearest possible
+color set_interface_colorpairs() takes colorcombo trio to interface_color_pair[int].
+ pdc color init_pair()  
+  pdc color init_extended_pair()  Checks some errors
+   pdc color _init_pair_core()  does the job
+nanorc process_a_keystroke(void) wait for a key and...
+ winio get_kbinput(WIN,showcursor) manages cursor visibility
+  winio parse_kbinput(WIN) Most of key translation is done here <<<<<<<<
+   winio int get_input(WIN) used in search too. asks to fill buffer from:
+    winio void read_keys_from(WIN)   insert raw codes in buffer.
+     pdc wgetch()
+    winio int get_code_from_plantation()  returns the code from rcfile or seeds the actions
+
+cut copy_text() copy to linestruct *cutbuffer
+cut paste_text() paste 
+cut do_delete() normal or tiny
+ cut zap_text(void)
+
+		fprintf(stderr, "tic..."); //o//
+		fprintf(stderr, "tac\n"); //o//
+fprintf(stderr, "\nParse_kbinput returns: %3x - %s\n", kbinput, keyname(kbinput)); //o//
+
+
+alias pdmake='\
+cd ~/nano/PDCursesMod/wingui;\
+ make clean ;\
+  make -j12 WIDE=Y UTF8=Y _w64=Y demos ;\
+  cp -f *.exe ~/desktop/demos
+      cp pdcurses.a libncursesw.a ; \
+    cp pdcurses.a libpdcurses.a ; \
+    cp pdcurses.a libncurses.a ; \
+  cd ~/nano/build_x86_64-w64-mingw32/nano ; \
+  make -j12 ; cp -f src/nano.exe ~/desktop'
+
+
+
+if (!PDC_get_key_modifiers()) { //o//
+    switch (keycode) { //o//
+        case 0x08:      return KEY_BACKSPACE; //o//
+        case '\n':      return KEY_ENTER; //o//
+    } //o//
+} //o//
+

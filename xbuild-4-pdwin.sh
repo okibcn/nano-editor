@@ -25,7 +25,7 @@ build () {
     OUTDIR="$(pwd)/pkg_${TARGET}"
     export PDCURSES_SRCDIR="$(pwd)/PDCursesMod"
 
-    export CFLAGS="-I${PDCURSES_SRCDIR} -DPDC_FORCE_UTF8"
+    export CFLAGS="-I${PDCURSES_SRCDIR} -DPDC_FORCE_UTF8 -DPDCDEBUG -DPDC_NCMOUSE"
     export LDFLAGS="-L${PDCURSES_SRCDIR}/${PDTERM} -static -static-libgcc ${PDCURSES_SRCDIR}/${PDTERM}/pdcurses.a"
     export NCURSESW_CFLAGS="-I${PDCURSES_SRCDIR} -DNCURSES_STATIC  -DENABLE_MOUSE"
     export NCURSESW_LIBS="-lpdcurses -lwinmm -lshlwapi -lgdi32 -lcomdlg32"
@@ -146,6 +146,26 @@ cd ..
 sed -i 's|Compiled options|Using '"${CURSES}"'\\n &|' src/nano.c
 sed -i '/SOMETHING = "REVISION/cSOMETHING = "REVISION \\"'"${NANO_VERSION}"' for Windows\\""' src/Makefile.am
 echo -e "GNU nano version Tag: ${NANO_VERSION}\nUsing $CURSES"
+
+# Debug hex codes (OPTIONAL)
+sed -i "/fprintf.stderr, . %3x/c\
+  \\\\t\\tfprintf(stderr, \" %3x - %s\", key_buffer[i], keyname(key_buffer[i])); //o//" ~/nano/src/winio.c
+
+# Solve windows resize crashes
+sed -i -e "/LINES and COLS accordingly/{n;N;d}" src/nano.c # delets 2 next lines
+sed -i "/LINES and COLS accordingly/a\
+    \\\\tresize_term(0, 0); \\n\
+    erase();" src/nano.c
+sed -i -e "/recreate the subwindows with their (new) sizes/{n;d}" src/nano.c
+sed -i "/we_are_running = TRUE/a\\\\tthe_window_resized = TRUE;" src/nano.c
+sed -i "/Ignore this keystroke/i\\\\t\\t\\tthe_window_resized = TRUE;" src/winio.c
+
+# Solve long delay after unicode 
+sed -i "/halfdelay(ISSET(QUICK_BLANK)/,/disable_kb_interrupt/d"  src/winio.c
+
+# Add (Y/N/Ctrl+C) to Save modified buffer prompt
+sed -i "s/Save modified buffer/& (Y/N/^C)/"  src/nano.c
+
 # echo "NANO_VERSION=${NANO_VERSION}" >>$GITHUB_ENV
 
  ############################
