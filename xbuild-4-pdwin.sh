@@ -25,7 +25,7 @@ build () {
     OUTDIR="$(pwd)/pkg_${TARGET}"
     export PDCURSES_SRCDIR="$(pwd)/PDCursesMod"
 
-    export CFLAGS="-I${PDCURSES_SRCDIR} -DPDC_FORCE_UTF8 -DPDCDEBUG -DPDC_NCMOUSE"
+    export CFLAGS="-g -O0 -flto -fdebug-prefix-map=`pwd`=. -I${PDCURSES_SRCDIR} -DPDC_FORCE_UTF8 -DPDCDEBUG -DPDC_NCMOUSE"
     export LDFLAGS="-L${PDCURSES_SRCDIR}/${PDTERM} -static -static-libgcc ${PDCURSES_SRCDIR}/${PDTERM}/pdcurses.a"
     export NCURSESW_CFLAGS="-I${PDCURSES_SRCDIR} -DNCURSES_STATIC  -DENABLE_MOUSE"
     export NCURSESW_LIBS="-lpdcurses -lwinmm -lshlwapi -lgdi32 -lcomdlg32"
@@ -47,13 +47,15 @@ build () {
     rm -rf *
     ../../configure --host="${TARGET}" --prefix="${OUTDIR}"  \
       --enable-{utf8,threads=windows,debug} --disable-{nls,speller} \
-      --sysconfdir="C:\\ProgramData"  # || exit 1
-    make -j$(($(nproc)*2)) && make install-strip # || exit 1
+      --sysconfdir="C:\\ProgramData" && \
+    make -j$(($(nproc)*2)) && \
+    make install-strip  && \
+    echo "Successfully build GNU Nano $(git describe|rev|cut -c11-|rev) build $(git rev-list --count HEAD) for Windows $BITS bits" || \
+    echo "  ****  BUILD FAILED ****"
     cd ../..
     cp -f ${OUTDIR}/bin/nano.exe ~/desktop
     cp -f "${PDCURSES_SRCDIR}/${PDTERM}/"*.exe ~/desktop/demos
-    
-    echo "Successfully build GNU Nano $(git describe|rev|cut -c11-|rev) build $(git rev-list --count HEAD) for Windows $BITS bits"
+  
 
 }
 
@@ -74,30 +76,22 @@ git clone https://github.com/Bill-Gray/PDCursesMod.git
 ##                        ##
  ##########################
 
-# >realpath< function doesn't exist on Windows, which isn't fully POSIX compliant.
 # 1. >realpath< function doesn't exist on Windows, which isn't fully POSIX compliant.
 # 2. Adding windows.h for supporting keypress detection.
 echo " " >> ./src/definitions.h
 echo "#ifdef _WIN32" >> ./src/definitions.h
-echo "#include <windows.h>"  >> ./src/definitions.h
+# echo "#include <windows.h>"  >> ./src/definitions.h
 echo "#define realpath(N,R) _fullpath((R),(N),0)" >> ./src/definitions.h
-echo "#define getmouse(A) nc_getmouse((A))" >> ./src/definitions.h
 echo "#endif" >> ./src/definitions.h
 
-# Solve mause detection issue
-sed -i "/undef ENABLE_MOUSE/d"   src/definitions.h
+# Modify temporal path from linux to windows
+sed -i 's|TMPDIR|TEMP|g' ./src/files.c
 
-# Solve duplicated definitions ALT-ARROWWS already in PDCursesMod
-sed -i "/0x42[1234]/d" src/definitions.h
-
-# Change default terminal to nothing
+# Change default terminal to nothing to remove terminal limitations.
 sed -i 's|vt220||g' ./src/nano.c
 
 # Fix homedir detection
 sed -i 's|\"HOME\"|"USERPROFILE\"|g' ./src/utils.c
-
-# Modify temporal path from linux to windows
-sed -i 's|TMPDIR|TEMP|g' ./src/files.c
 
 # Modify path expansion with backslashes
 sed -i "/free(tilded)/a\
@@ -105,28 +99,32 @@ sed -i "/free(tilded)/a\
 
   s|path\[i\] != '/'|path[i] != '/' \&\& path[i] != '\\\\\\\\'|" src/files.c
 
-# Solve SHIFT, ALT and CTRL keys
-# sed -i 's/waiting_codes = 1;/waiting_codes = 0;\
-#     if (GetAsyncKeyState(VK_LMENU) < 0)	key_buffer[waiting_codes++] = ESC_CODE;\
-#     key_buffer[waiting_codes++] = input;/
-
-#     /TIOCLINUX/c \\tmodifiers \= 0;\
-#     if(GetAsyncKeyState(VK_SHIFT) < 0) modifiers |\= 0x01;\
-#     if(GetAsyncKeyState(VK_CONTROL) < 0) modifiers |\= 0x04;\
-#     if(GetAsyncKeyState(VK_LMENU) < 0) modifiers |\= 0x08;\
-#     if \(\!mute_modifiers) \{' src/winio.c
-# sed  -i '/parse_kbinput/!b
-#     :a
-#     s/__linux__/_WIN32/;t trail
-#     n;ba
-#     :trail
-#     n;btrail' src/winio.c
-
-# default open() files in binary mode as it does in linux
+# default open() files in binary mode as linux
 sed -i 's/O_..ONLY/& | _O_BINARY/g' ./src/files.c
 sed -i 's/O_..ONLY/& | _O_BINARY/g' ./src/text.c
 
-# Adding static ncurses revision and patch level to nano version info.
+# Allow custom colors in terminals with more than 256 colors
+sed -i "/COLORS == 256/ {s/==/>=/}"  src/rcfile.c
+
+# Solve windows resize crashes
+sed -i -e "/LINES and COLS accordingly/{n;N;d}" src/nano.c # delets 2 next lines
+sed -i "/LINES and COLS accordingly/a\
+    \\\\tresize_term(0, 0); \\n\
+    erase();" src/nano.c
+sed -i -e "/recreate the subwindows with their (new) sizes/{n;d}" src/nano.c
+sed -i "/we_are_running = TRUE/a\\\\tthe_window_resized = TRUE;" src/nano.c
+sed -i "/Ignore this keystroke/i\\\\t\\t\\tthe_window_resized = TRUE;" src/winio.c
+
+# Solve mouse detection issue
+sed -i "/undef ENABLE_MOUSE/d"   src/definitions.h
+
+# Solve long delay after unicode 
+sed -i "/halfdelay(ISSET(QUICK_BLANK)/,/disable_kb_interrupt/d"  src/winio.c
+
+# Solve duplicated definitions ALT-ARROWWS already in PDCursesMod
+sed -i "/0x42[1234]/d" src/definitions.h
+
+# Adding static PDCurses revision and patch level to nano version info.
 LAST_VERSION="$(wget -q https://api.github.com/repos/okibcn/nano-editor/releases/latest -O - | awk -F \" -v RS="," '/tag_name/ {print $(NF-1)}')" \
   || echo "FIRST RELEASE!!!!"
 NANO_VERSION="$(git describe --tags 2>/dev/null | sed "s/.\{10\}$//")-$(git rev-list --count HEAD)"
@@ -151,20 +149,42 @@ echo -e "GNU nano version Tag: ${NANO_VERSION}\nUsing $CURSES"
 sed -i "/fprintf.stderr, . %3x/c\
   \\\\t\\tfprintf(stderr, \" %3x - %s\", key_buffer[i], keyname(key_buffer[i])); //o//" ~/nano/src/winio.c
 
-# Solve windows resize crashes
-sed -i -e "/LINES and COLS accordingly/{n;N;d}" src/nano.c # delets 2 next lines
-sed -i "/LINES and COLS accordingly/a\
-    \\\\tresize_term(0, 0); \\n\
-    erase();" src/nano.c
-sed -i -e "/recreate the subwindows with their (new) sizes/{n;d}" src/nano.c
-sed -i "/we_are_running = TRUE/a\\\\tthe_window_resized = TRUE;" src/nano.c
-sed -i "/Ignore this keystroke/i\\\\t\\t\\tthe_window_resized = TRUE;" src/winio.c
-
-# Solve long delay after unicode 
-sed -i "/halfdelay(ISSET(QUICK_BLANK)/,/disable_kb_interrupt/d"  src/winio.c
-
-# Add (Y/N/Ctrl+C) to Save modified buffer prompt
+# Add (Y/N/^C) to Save modified buffer prompt
 sed -i "s/Save modified buffer/& (Y/N/^C)/"  src/nano.c
+
+#### PDCursesMod especific patches
+
+# PDCurses uses 64bit color type chtype instead of 32bit int
+sed -i "/interface_color_pair/ {s/int/chtype/}"  src/prototypes.h
+sed -i "/interface_color_pair/ {s/int/chtype/}"  src/global.c
+
+# Desambiguation of BACKSPACE vs ^H, or ENTER vs ^M
+sed -i "/get_kbinput(midwin, VISIBLE)/a\
+    \\\\tif (!((PDC_get_key_modifiers()) & (PDC_KEY_MODIFIER_SHIFT|PDC_KEY_MODIFIER_CONTROL|PDC_KEY_MODIFIER_ALT)) ) {\\n\
+    \\t\\tswitch (input) {\\n\
+		\\t\\t\\tcase 0x08:      input = KEY_BACKSPACE; break;\\n\
+		\\t\\t\\tcase 0x0d:      input = KEY_ENTER;\\n\
+		\\t\\t}\\n\
+	  \\t}"  src/nano.c
+
+# Solve SHIFT, ALT and CTRL keys
+# sed -i 's/waiting_codes = 1;/waiting_codes = 0;\
+#     if (GetAsyncKeyState(VK_LMENU) < 0)	key_buffer[waiting_codes++] = ESC_CODE;\
+#     key_buffer[waiting_codes++] = input;/
+
+#     /TIOCLINUX/c \\tmodifiers \= 0;\
+#     if(GetAsyncKeyState(VK_SHIFT) < 0) modifiers |\= 0x01;\
+#     if(GetAsyncKeyState(VK_CONTROL) < 0) modifiers |\= 0x04;\
+#     if(GetAsyncKeyState(VK_LMENU) < 0) modifiers |\= 0x08;\
+#     if \(\!mute_modifiers) \{' src/winio.c
+# sed  -i '/parse_kbinput/!b
+#     :a
+#     s/__linux__/_WIN32/;t trail
+#     n;ba
+#     :trail
+#     n;btrail' src/winio.c
+
+
 
 # echo "NANO_VERSION=${NANO_VERSION}" >>$GITHUB_ENV
 
