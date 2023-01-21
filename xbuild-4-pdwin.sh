@@ -16,7 +16,7 @@
 ##                        ##
  ##########################
 build () {
-    cd ~/nano
+    # cd ~/nano
     ARCH="${1:-x86_64}"
     PDTERM="${2:-wincon}"    # PDCursesMod supports wincon, vt, wingui, sdl1, sdl2
     [ "${ARCH}" = "x86_64" ] && BITS="64" || BITS="32"
@@ -28,17 +28,14 @@ build () {
     export CFLAGS="-g -O0 -flto -fdebug-prefix-map=`pwd`=. -I${PDCURSES_SRCDIR} -DPDC_FORCE_UTF8 -DPDCDEBUG -DPDC_NCMOUSE"
     export LDFLAGS="-L${PDCURSES_SRCDIR}/${PDTERM} -static -static-libgcc ${PDCURSES_SRCDIR}/${PDTERM}/pdcurses.a"
     export NCURSESW_CFLAGS="-I${PDCURSES_SRCDIR} -DNCURSES_STATIC  -DENABLE_MOUSE"
-    export NCURSESW_LIBS="-lpdcurses -lwinmm -lshlwapi -lgdi32 -lcomdlg32"
-    export LIBS="" # -lbcrypt"
+    export NCURSESW_LIBS="-l:pdcurses.a -lwinmm" # -lgdi32 -lcomdlg32"
+    export LIBS="" #  -lshlwapi -lbcrypt"
 
     # cross Build pdcurses for destination host
     cd "${PDCURSES_SRCDIR}/${PDTERM}"
     make clean
     make -j$(($(nproc)*2)) WIDE=Y UTF8=Y _w${BITS}=Y demos
-    cp pdcurses.a libncursesw.a
-    cp pdcurses.a libpdcurses.a
-    cp pdcurses.a libncurses.a
-        cd ../..
+    cd ../..
 
     # Build nano
     sed -i 's/Windows.*/Windows '"${BITS}"' bits\\""/' src/Makefile.am
@@ -50,8 +47,8 @@ build () {
       --sysconfdir="C:\\ProgramData" && \
     make -j$(($(nproc)*2)) && \
     make install-strip  && \
-    echo "Successfully build GNU Nano $(git describe|rev|cut -c11-|rev) build $(git rev-list --count HEAD) for Windows $BITS bits" || \
-    echo "  ****  BUILD FAILED ****"
+    echo "RESULT:  Successfully build GNU Nano $(git describe|rev|cut -c11-|rev) build $(git rev-list --count HEAD) for Windows $BITS bits" || \
+    echo "RESULT:  ****  BUILD FAILED ****"
     cd ../..
     cp -f ${OUTDIR}/bin/nano.exe ~/desktop
     cp -f "${PDCURSES_SRCDIR}/${PDTERM}/"*.exe ~/desktop/demos
@@ -88,7 +85,11 @@ echo "#endif" >> ./src/definitions.h
 sed -i 's|TMPDIR|TEMP|g' ./src/files.c
 
 # Change default terminal to nothing to remove terminal limitations.
-sed -i 's|vt220||g' ./src/nano.c
+sed -i 's|vt220||g
+
+  /nl_langinfo(CODESET)/ c\\tsetlocale(LC_ALL, "");'  src/nano.c
+
+nl_langinfo(CODESET)
 
 # Fix homedir detection
 sed -i 's|\"HOME\"|"USERPROFILE\"|g' ./src/utils.c
@@ -115,11 +116,8 @@ sed -i -e "/recreate the subwindows with their (new) sizes/{n;d}" src/nano.c
 sed -i "/we_are_running = TRUE/a\\\\tthe_window_resized = TRUE;" src/nano.c
 sed -i "/Ignore this keystroke/i\\\\t\\t\\tthe_window_resized = TRUE;" src/winio.c
 
-# Solve mouse detection issue
-sed -i "/undef ENABLE_MOUSE/d"   src/definitions.h
-
 # Solve long delay after unicode 
-sed -i "/halfdelay(ISSET(QUICK_BLANK)/,/disable_kb_interrupt/d"  src/winio.c
+# sed -i "/halfdelay(ISSET(QUICK_BLANK)/,/disable_kb_interrupt/d"  src/winio.c
 
 # Solve duplicated definitions ALT-ARROWWS already in PDCursesMod
 sed -i "/0x42[1234]/d" src/definitions.h
@@ -136,8 +134,7 @@ if [ "${NANO_VERSION}" == "${LAST_BASEVERSION}" ]; then
   NANO_VERSION="${NANO_VERSION}.${SUBBUILD}"
 fi
 cd PDCursesMod
-CURSES="$(wget -q https://api.github.com/repos/Bill-Gray/PDCursesMod/releases/latest -O - |
-awk -F \" -v RS="," '/tag_name/ {print $(NF-1)}')"
+CURSES="$(wget -q https://api.github.com/repos/Bill-Gray/PDCursesMod/releases/latest -O - | awk -F \" -v RS="," '/tag_name/ {print $(NF-1)}')"
 CURSES="PDCursesMod ${CURSES} build $(git rev-list --count HEAD)"
 cd ..
 
@@ -147,10 +144,10 @@ echo -e "GNU nano version Tag: ${NANO_VERSION}\nUsing $CURSES"
 
 # Debug hex codes (OPTIONAL)
 sed -i "/fprintf.stderr, . %3x/c\
-  \\\\t\\tfprintf(stderr, \" %3x - %s\", key_buffer[i], keyname(key_buffer[i])); //o//" ~/nano/src/winio.c
+  \\\\t\\tfprintf(stderr, \" %3x-%s\", key_buffer[i], keyname(key_buffer[i])); //o//" ~/nano/src/winio.c
 
 # Add (Y/N/^C) to Save modified buffer prompt
-sed -i "s/Save modified buffer/& (Y/N/^C)/"  src/nano.c
+sed -i "s|Save modified buffer|& (Y/N/^C)|"  src/nano.c
 
 #### PDCursesMod especific patches
 
@@ -166,6 +163,9 @@ sed -i "/get_kbinput(midwin, VISIBLE)/a\
 		\\t\\t\\tcase 0x0d:      input = KEY_ENTER;\\n\
 		\\t\\t}\\n\
 	  \\t}"  src/nano.c
+
+# Solve mouse detection issue when using PDCursesMod advanced mouse mode
+# sed -i "/undef ENABLE_MOUSE/d"   src/definitions.h
 
 # Solve SHIFT, ALT and CTRL keys
 # sed -i 's/waiting_codes = 1;/waiting_codes = 0;\

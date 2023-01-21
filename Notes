@@ -13,7 +13,7 @@
 # PDCurses reference: https://pdcurses.org/docs/USERS.html
 #       https://www.demo2s.com/c/c-doupdate-hdfm.html 
 
-
+# Unicode Calculator https://www.branah.com/unicode-converter
 
 # last commit name
 git show -s --format=%s
@@ -101,6 +101,7 @@ color set_interface_colorpairs() takes colorcombo trio to interface_color_pair[i
  pdc color init_pair()  
   pdc color init_extended_pair()  Checks some errors
    pdc color _init_pair_core()  does the job
+
 nanorc process_a_keystroke(void) wait for a key and...
  winio get_kbinput(WIN,showcursor) manages cursor visibility
   winio parse_kbinput(WIN) Most of key translation is done here <<<<<<<<
@@ -138,4 +139,5 @@ if (!PDC_get_key_modifiers()) { //o//
         case '\n':      return KEY_ENTER; //o//
     } //o//
 } //o//
+ 
 

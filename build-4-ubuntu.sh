@@ -10,6 +10,8 @@ git clone git://git.savannah.gnu.org/nano.git nano
 cd nano
 wget -c "https://invisible-mirror.net/archives/ncurses/ncurses-6.4.tar.gz"
 tar -xzvf ncurses-6.4.tar.gz
+./autogen.sh
+
 PKG=$(pwd)/pkg
 host="${1:-x86_64}-linux-gnu"
 # host="${1:-x86_64}-w64-mingw32"
@@ -24,11 +26,11 @@ make -j$(nproc)
 make install
 cd ../..
 
-./autogen.sh
+
 cd build/nano
 export CURSES_LIB_NAME="ncursesw"
 export CURSES_LIB="-lncursesw"
-export LDFLAGS="-O2 -L\"${PKG}/lib/\" -static"
+export LDFLAGS="-O2 -g3 -static"
 export CPPFLAGS="-DHAVE_NCURSESW_NCURSES_H -DNCURSES_STATIC  \
                  -I\"${PKG}/include\" -I\"${PKG}/include/ncursesw\""
 touch roll-a-release.sh  # Lie to configure.ac to make use of `git describe`.
