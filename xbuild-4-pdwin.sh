@@ -34,7 +34,7 @@ build () {
     # cross Build pdcurses for destination host
     cd "${PDCURSES_SRCDIR}/${PDTERM}"
     make clean
-    make -j$(($(nproc)*2)) WIDE=Y UTF8=Y _w${BITS}=Y demos
+    make -j$(($(nproc)*2)) WIDE=Y UTF8=Y _w${BITS}=Y DEBUG=Y demos
     cd ../..
 
     # Build nano

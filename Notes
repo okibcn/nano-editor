@@ -133,11 +133,47 @@ cd ~/nano/PDCursesMod/wingui;\
 
 
 
-if (!PDC_get_key_modifiers()) { //o//
-    switch (keycode) { //o//
-        case 0x08:      return KEY_BACKSPACE; //o//
-        case '\n':      return KEY_ENTER; //o//
-    } //o//
-} //o//
- 
-
+/* deliver a byte sequence in UTF-8 or UTF-16 encoding.*/
+/* Supports supplentary unicode planes up to 20 bits (UTF-16). */
+int wgetch(WINDOW *win)
+{
+    static unsigned char outbuff[8];
+    static size_t n_buff = 0;
+    wchar_t *wordbuff = (wchar_t *)outbuff;
+    int unicode, rval = 0;
+    
+    if(!n_buff)  /* Empty buffer, no pending bytes */
+    {
+        wordbuff[0] = raw_wgetch(win);
+        for(;!n_buff;)  /* loop until  a valid UTF-16 codepoint is received */
+        {    
+            if(wordbuff[0] >= 0xD7FF && wordbuff[0] <= 0xE000)  /* Potential multiblock UTF-16 codepoint */
+            {
+                wordbuff[1] = raw_wgetch(win);   /* get another block from buffer*/
+                if (wordbuff[1] < 0xDC00)   /* first block was an error */
+                    wordbuff[0] = wordbuff[1];  /* discard first block */
+                else
+                { 
+                    n_buff = 4; /* It is a two block codepoint */
+                    unicode = ( (int)(wordbuff[0] & 0x3FF) << 10 ) | (int)( wordbuff[1] & 0x3FF ) | (int)0x10000;
+                }
+            }
+            else   /* It is a single block codepoint */
+            {
+                // if( rval != ERR && (rval < 0 || rval > 127)
+                //   && !PDC_is_function_key( rval))
+                n_buff = 2;  
+                unicode = (int)(wordbuff[0]);
+            }
+        }
+# ifdef PDC_FORCE_UTF8
+        n_buff = PDC_wc_to_utf8(outbuff, unicode);
+# endif
+    }
+    size_t i;
+    rval = outbuff[0];
+    n_buff--;
+    for( i = 0; i < n_buff; i++)
+        outbuff[i] = outbuff[i + 1];
+    return( rval);
+}
