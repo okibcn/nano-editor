@@ -35,7 +35,7 @@ build () {
     ../../ncurses/configure --prefix="${OUTDIR}"  \
       --enable-{widec,sp-funcs,termcap,term-driver,interop}  \
       --disable-{shared,database,rpath,home-terminfo,db-install,getcap,echo}  \
-      --without-{progs,ada,cxx-binding,manpages,pthread,debug,tests,libtool}  \
+      --without-{progs,ada,cxx-binding,manpages,pthread,tests,libtool}  \
       --build="${BUILD}" --host="${TARGET}" #|| exit 1
     make -j$(($(nproc)*2)) && make install #|| exit 1
     cd ../..
@@ -61,10 +61,13 @@ build () {
 ##                        ##
  ##########################
 
-git clone git://git.savannah.gnu.org/nano.git
-cd nano
+mkdir -p wnano
+cd wnano
+git clone git://git.savannah.gnu.org/nano.git .
 git clone https://github.com/mirror/ncurses.git
 ./autogen.sh
+mkdir _srcback
+cp -r src/* _srcback
 
  ##########################
 ##                        ##
@@ -72,6 +75,7 @@ git clone https://github.com/mirror/ncurses.git
 ##                        ##
  ##########################
 
+cp -rf ./_srcback/* ./src
 # >realpath< function doesn't exist on Windows, which isn't fully POSIX compliant.
 # 1. >realpath< function doesn't exist on Windows, which isn't fully POSIX compliant.
 # 2. Adding windows.h for supporting keypress detection.
@@ -134,6 +138,7 @@ cd ..
 sed -i 's|Compiled options|Using '"${CURSES}"'\\n &|' src/nano.c
 sed -i '/SOMETHING = "REVISION/cSOMETHING = "REVISION \\"'"${NANO_VERSION}"' for Windows\\""' src/Makefile.am
 echo -e "GNU nano version Tag: ${NANO_VERSION}\nUsing ${CURSES}"
+
 echo "NANO_VERSION=${NANO_VERSION}" >>$GITHUB_ENV
 
  ############################

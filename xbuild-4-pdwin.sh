@@ -19,13 +19,12 @@ build () {
     # cd ~/nano
     ARCH="${1:-x86_64}"
     PDTERM="${2:-wincon}"    # PDCursesMod supports wincon, vt, wingui, sdl1, sdl2
-    [ "${ARCH}" = "x86_64" ] && BITS="64" || BITS="32"
     BUILD="$(gcc -dumpmachine)"
     TARGET="${ARCH}-w64-mingw32"
     OUTDIR="$(pwd)/pkg_${TARGET}"
-    export PDCURSES_SRCDIR="$(pwd)/PDCursesMod"
 
-    export CFLAGS="-g -O0 -flto -fdebug-prefix-map=`pwd`=. -I${PDCURSES_SRCDIR} -DPDC_FORCE_UTF8 -DPDCDEBUG -DPDC_NCMOUSE"
+    export PDCURSES_SRCDIR="$(pwd)/PDCursesMod"
+    export CFLAGS="-g3 -O0 -flto -fdebug-prefix-map=`pwd`=. -I${PDCURSES_SRCDIR} -DPDC_FORCE_UTF8 -DPDCDEBUG -DPDC_NCMOUSE"
     export LDFLAGS="-L${PDCURSES_SRCDIR}/${PDTERM} -static -static-libgcc ${PDCURSES_SRCDIR}/${PDTERM}/pdcurses.a"
     export NCURSESW_CFLAGS="-I${PDCURSES_SRCDIR} -DNCURSES_STATIC  -DENABLE_MOUSE"
     export NCURSESW_LIBS="-l:pdcurses.a -lwinmm" # -lgdi32 -lcomdlg32"
@@ -62,10 +61,13 @@ build () {
 ##                        ##
  ##########################
 
-git clone git://git.savannah.gnu.org/nano.git
-cd nano
+mkdir -p pnano
+cd pnano
+git clone git://git.savannah.gnu.org/nano.git .
 git clone https://github.com/Bill-Gray/PDCursesMod.git
 ./autogen.sh
+mkdir _srcback
+cp -r src/* _srcback
 
  ##########################
 ##                        ##
@@ -73,6 +75,8 @@ git clone https://github.com/Bill-Gray/PDCursesMod.git
 ##                        ##
  ##########################
 
+
+cp -rf ./_srcback/* ./src
 # 1. >realpath< function doesn't exist on Windows, which isn't fully POSIX compliant.
 # 2. Adding windows.h for supporting keypress detection.
 echo " " >> ./src/definitions.h
@@ -88,8 +92,6 @@ sed -i 's|TMPDIR|TEMP|g' ./src/files.c
 sed -i 's|vt220||g
 
   /nl_langinfo(CODESET)/ c\\tsetlocale(LC_ALL, "");'  src/nano.c
-
-nl_langinfo(CODESET)
 
 # Fix homedir detection
 sed -i 's|\"HOME\"|"USERPROFILE\"|g' ./src/utils.c
@@ -113,8 +115,8 @@ sed -i "/LINES and COLS accordingly/a\
     \\\\tresize_term(0, 0); \\n\
     erase();" src/nano.c
 sed -i -e "/recreate the subwindows with their (new) sizes/{n;d}" src/nano.c
-sed -i "/we_are_running = TRUE/a\\\\tthe_window_resized = TRUE;" src/nano.c
 sed -i "/Ignore this keystroke/i\\\\t\\t\\tthe_window_resized = TRUE;" src/winio.c
+# sed -i "/we_are_running = TRUE/a\\\\tungetch(KEY_RESIZE);" src/nano.c
 
 # Solve long delay after unicode 
 # sed -i "/halfdelay(ISSET(QUICK_BLANK)/,/disable_kb_interrupt/d"  src/winio.c
@@ -144,7 +146,7 @@ echo -e "GNU nano version Tag: ${NANO_VERSION}\nUsing $CURSES"
 
 # Debug hex codes (OPTIONAL)
 sed -i "/fprintf.stderr, . %3x/c\
-  \\\\t\\tfprintf(stderr, \" %3x-%s\", key_buffer[i], keyname(key_buffer[i])); //o//" ~/nano/src/winio.c
+  \\\\t\\tfprintf(stderr, \" %3x-%s\", key_buffer[i], keyname(key_buffer[i])); //o//" src/winio.c
 
 # Add (Y/N/^C) to Save modified buffer prompt
 sed -i "s|Save modified buffer|& (Y/N/^C)|"  src/nano.c
@@ -164,27 +166,13 @@ sed -i "/get_kbinput(midwin, VISIBLE)/a\
 		\\t\\t}\\n\
 	  \\t}"  src/nano.c
 
+# Fix for width detection using PDCursesMod internal function
+sed -i "s|width \= wc|width = PDC_wc|"  src/chars.c
+sed -i "/int advance_over/iPDCEX int PDC_wcwidth( const int32_t ucs);"  src/chars.c
+
+
 # Solve mouse detection issue when using PDCursesMod advanced mouse mode
 # sed -i "/undef ENABLE_MOUSE/d"   src/definitions.h
-
-# Solve SHIFT, ALT and CTRL keys
-# sed -i 's/waiting_codes = 1;/waiting_codes = 0;\
-#     if (GetAsyncKeyState(VK_LMENU) < 0)	key_buffer[waiting_codes++] = ESC_CODE;\
-#     key_buffer[waiting_codes++] = input;/
-
-#     /TIOCLINUX/c \\tmodifiers \= 0;\
-#     if(GetAsyncKeyState(VK_SHIFT) < 0) modifiers |\= 0x01;\
-#     if(GetAsyncKeyState(VK_CONTROL) < 0) modifiers |\= 0x04;\
-#     if(GetAsyncKeyState(VK_LMENU) < 0) modifiers |\= 0x08;\
-#     if \(\!mute_modifiers) \{' src/winio.c
-# sed  -i '/parse_kbinput/!b
-#     :a
-#     s/__linux__/_WIN32/;t trail
-#     n;ba
-#     :trail
-#     n;btrail' src/winio.c
-
-
 
 # echo "NANO_VERSION=${NANO_VERSION}" >>$GITHUB_ENV
 

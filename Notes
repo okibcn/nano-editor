@@ -15,6 +15,8 @@
 
 # Unicode Calculator https://www.branah.com/unicode-converter
 
+# How MS tried to solve the WC (UTF-16) to MB (UTF-8) problem: https://learn.microsoft.com/en-us/windows/win32/api/stringapiset/nf-stringapiset-multibytetowidechar
+
 # last commit name
 git show -s --format=%s
 
@@ -120,18 +122,6 @@ cut do_delete() normal or tiny
 fprintf(stderr, "\nParse_kbinput returns: %3x - %s\n", kbinput, keyname(kbinput)); //o//
 
 
-alias pdmake='\
-cd ~/nano/PDCursesMod/wingui;\
- make clean ;\
-  make -j12 WIDE=Y UTF8=Y _w64=Y demos ;\
-  cp -f *.exe ~/desktop/demos
-      cp pdcurses.a libncursesw.a ; \
-    cp pdcurses.a libpdcurses.a ; \
-    cp pdcurses.a libncurses.a ; \
-  cd ~/nano/build_x86_64-w64-mingw32/nano ; \
-  make -j12 ; cp -f src/nano.exe ~/desktop'
-
-
 
 /* deliver a byte sequence in UTF-8 or UTF-16 encoding.*/
 /* Supports supplentary unicode planes up to 20 bits (UTF-16). */
@@ -177,3 +167,8 @@ int wgetch(WINDOW *win)
         outbuff[i] = outbuff[i + 1];
     return( rval);
 }
+
+
+v & 0xE000 == 0xE000   //  v >= E000
+1101 1 000 0000 0000
+v & F800 = D800
