@@ -51,7 +51,6 @@ build () {
     cd ../..
     cp -f ${OUTDIR}/bin/nano.exe ~/desktop
     cp -f "${PDCURSES_SRCDIR}/${PDTERM}/"*.exe ~/desktop/demos
-  
 
 }
 
@@ -119,7 +118,7 @@ sed -i "/Ignore this keystroke/i\\\\t\\t\\tthe_window_resized = TRUE;" src/winio
 # sed -i "/we_are_running = TRUE/a\\\\tungetch(KEY_RESIZE);" src/nano.c
 
 # Solve long delay after unicode 
-# sed -i "/halfdelay(ISSET(QUICK_BLANK)/,/disable_kb_interrupt/d"  src/winio.c
+sed -i "/halfdelay(ISSET(QUICK_BLANK)/,/disable_kb_interrupt/d"  src/winio.c
 
 # Solve duplicated definitions ALT-ARROWWS already in PDCursesMod
 sed -i "/0x42[1234]/d" src/definitions.h
@@ -151,11 +150,13 @@ sed -i "/fprintf.stderr, . %3x/c\
 # Add (Y/N/^C) to Save modified buffer prompt
 sed -i "s|Save modified buffer|& (Y/N/^C)|"  src/nano.c
 
+####
 #### PDCursesMod especific patches
+####
 
 # PDCurses uses 64bit color type chtype instead of 32bit int
-sed -i "/interface_color_pair/ {s/int/chtype/}"  src/prototypes.h
-sed -i "/interface_color_pair/ {s/int/chtype/}"  src/global.c
+sed -i "/interface_color_pair/ {s/int/chtype/}" src/prototypes.h src/global.c
+sed -i "/int attributes/ {s/int/chtype/}" src/prototypes.h src/global.c
 
 # Desambiguation of BACKSPACE vs ^H, or ENTER vs ^M
 sed -i "/get_kbinput(midwin, VISIBLE)/a\
@@ -167,8 +168,14 @@ sed -i "/get_kbinput(midwin, VISIBLE)/a\
 	  \\t}"  src/nano.c
 
 # Fix for width detection using PDCursesMod internal function
-sed -i "s|width \= wc|width = PDC_wc|"  src/chars.c
-sed -i "/int advance_over/iPDCEX int PDC_wcwidth( const int32_t ucs);"  src/chars.c
+sed -i 's|wcwidth(wc)|uc_width(wc, "UTF-8")|g'  src/chars.c
+sed -i '/prototypes.h/a#include "uniwidth.h"'  src/chars.c
+
+# Fix wchar_t 16 bits limitation for displaying emojis and all the suplemental codepoints:
+sed -i '0,/#/s//#define wchar_t int\n&/'  src/definitions.h PDCursesMod/curses.h
+
+# Fix browser folder change
+sed -i's/--selected/selected=0/' src/browser.c
 
 
 # Solve mouse detection issue when using PDCursesMod advanced mouse mode
