@@ -134,4 +134,3 @@ cut do_delete() normal or tiny
 		fprintf(stderr, "tic..."); //o//
 		fprintf(stderr, "tac\n"); //o//
 fprintf(stderr, "\nParse_kbinput returns: %3x - %s\n", kbinput, keyname(kbinput)); //o//
-

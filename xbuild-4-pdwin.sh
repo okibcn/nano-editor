@@ -123,29 +123,13 @@ sed -i "/halfdelay(ISSET(QUICK_BLANK)/,/disable_kb_interrupt/d"  src/winio.c
 # Solve duplicated definitions ALT-ARROWWS already in PDCursesMod
 sed -i "/0x42[1234]/d" src/definitions.h
 
-# Adding static PDCurses revision and patch level to nano version info.
-LAST_VERSION="$(wget -q https://api.github.com/repos/okibcn/nano-editor/releases/latest -O - | awk -F \" -v RS="," '/tag_name/ {print $(NF-1)}')" \
-  || echo "FIRST RELEASE!!!!"
-NANO_VERSION="$(git describe --tags 2>/dev/null | sed "s/.\{10\}$//")-$(git rev-list --count HEAD)"
-LAST_BASEVERSION="$(echo $LAST_VERSION | awk -F .  '{print $1"."$2}')"  # last version without the subbuild
-if [ "${NANO_VERSION}" == "${LAST_BASEVERSION}" ]; then
-  # This is a new Windows build based on the same nano build, probably because there is a new ncurses patch
-  SUBBUILD="$(echo $LAST_VERSION | awk -F .  '{print $3}')"
-  ((SUBBUILD=SUBBUILD+1))
-  NANO_VERSION="${NANO_VERSION}.${SUBBUILD}"
-fi
-cd PDCursesMod
-CURSES="$(wget -q https://api.github.com/repos/Bill-Gray/PDCursesMod/releases/latest -O - | awk -F \" -v RS="," '/tag_name/ {print $(NF-1)}')"
-CURSES="PDCursesMod ${CURSES} build $(git rev-list --count HEAD)"
-cd ..
-
-sed -i 's|Compiled options|Using '"${CURSES}"'\\n &|' src/nano.c
-sed -i '/SOMETHING = "REVISION/cSOMETHING = "REVISION \\"'"${NANO_VERSION}"' for Windows\\""' src/Makefile.am
-echo -e "GNU nano version Tag: ${NANO_VERSION}\nUsing $CURSES"
-
-# Debug hex codes (OPTIONAL)
+# Adding keyname to Debug hex codes (OPTIONAL)
 sed -i "/fprintf.stderr, . %3x/c\
   \\\\t\\tfprintf(stderr, \" %3x-%s\", key_buffer[i], keyname(key_buffer[i])); //o//" src/winio.c
+	# fprintf(stderr, "With modifiers: SHITF=%ld CTRL=%ld ALT=%ld\n", 
+	# 	PDC_get_key_modifiers() & PDC_KEY_MODIFIER_SHIFT,
+	# 	PDC_get_key_modifiers() & PDC_KEY_MODIFIER_CONTROL,
+	# 	PDC_get_key_modifiers() & PDC_KEY_MODIFIER_ALT);
 
 # Add (Y/N/^C) to Save modified buffer prompt
 sed -i "s|Save modified buffer|& (Y/N/^C)|"  src/nano.c
@@ -154,9 +138,11 @@ sed -i "s|Save modified buffer|& (Y/N/^C)|"  src/nano.c
 #### PDCursesMod especific patches
 ####
 
-# PDCurses uses 64bit color type chtype instead of 32bit int
+# PDCurses uses 64bit (chtype) for cell attributes instead of 32bit (int)
 sed -i "/interface_color_pair/ {s/int/chtype/}" src/prototypes.h src/global.c
-sed -i "/int attributes/ {s/int/chtype/}" src/prototypes.h src/global.c
+sed -i "/int attributes/ {s/int/chtype/}" src/definitions.h
+sed -i "/bool parse_combination/ {s/int/chtype/}" src/rcfile.c
+sed -i "/int attributes/ {s/int/chtype/}" src/rcfile.c
 
 # Desambiguation of BACKSPACE vs ^H, or ENTER vs ^M
 sed -i "/get_kbinput(midwin, VISIBLE)/a\
@@ -180,6 +166,27 @@ sed -i's/--selected/selected=0/' src/browser.c
 
 # Solve mouse detection issue when using PDCursesMod advanced mouse mode
 # sed -i "/undef ENABLE_MOUSE/d"   src/definitions.h
+
+# Adding static PDCurses revision and patch level to nano version info.
+LAST_VERSION="$(wget -q https://api.github.com/repos/okibcn/nano-editor/releases/latest -O - | awk -F \" -v RS="," '/tag_name/ {print $(NF-1)}')" \
+  || echo "FIRST RELEASE!!!!"
+NANO_VERSION="$(git describe --tags 2>/dev/null | sed "s/.\{10\}$//")-$(git rev-list --count HEAD)"
+LAST_BASEVERSION="$(echo $LAST_VERSION | awk -F .  '{print $1"."$2}')"  # last version without the subbuild
+if [ "${NANO_VERSION}" == "${LAST_BASEVERSION}" ]; then
+  # This is a new Windows build based on the same nano build, probably because there is a new ncurses patch
+  SUBBUILD="$(echo $LAST_VERSION | awk -F .  '{print $3}')"
+  ((SUBBUILD=SUBBUILD+1))
+  NANO_VERSION="${NANO_VERSION}.${SUBBUILD}"
+fi
+cd PDCursesMod
+CURSES="$(wget -q https://api.github.com/repos/Bill-Gray/PDCursesMod/releases/latest -O - | awk -F \" -v RS="," '/tag_name/ {print $(NF-1)}')"
+CURSES="PDCursesMod ${CURSES} build $(git rev-list --count HEAD)"
+cd ..
+
+sed -i 's|Compiled options|Using '"${CURSES}"'\\n &|' src/nano.c
+sed -i '/SOMETHING = "REVISION/cSOMETHING = "REVISION \\"'"${NANO_VERSION}"' for Windows\\""' src/Makefile.am
+echo -e "GNU nano version Tag: ${NANO_VERSION}\nUsing $CURSES"
+
 
 # echo "NANO_VERSION=${NANO_VERSION}" >>$GITHUB_ENV
 

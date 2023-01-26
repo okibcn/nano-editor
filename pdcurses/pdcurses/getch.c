@@ -732,14 +732,9 @@ int PDC_wc_to_utf8(char *dest, const int32_t code);
 /* Supports supplentary unicode planes up to 20 bits (UTF-16). */
 int wgetch(WINDOW *win)
 {
-    static union
-    {
-        wchar_t word[2];
-        char byte[4];
-    } buff;
+    static wchar_t buff;
     static size_t n_buff = 0;
     int rval = 0;
-
     if (!n_buff) /* Empty buffer, no pending bytes */
     {
         rval = raw_wgetch(win);
@@ -747,30 +742,32 @@ int wgetch(WINDOW *win)
         {
             if (rval < 0)
                 rval = ERR;
-            if(  rval == ERR || (rval < 0xF0) || PDC_is_function_key(rval))
+            if(  rval == ERR || (rval < 0x80) || PDC_is_function_key(rval))
                 return rval;
-            buff.word[0] = rval;
+            buff = rval;
             if ( (rval & 0xF800) != 0xD800) /* single-unit UTF-16 unicode codepoint */
-                n_buff = 2;
+                n_buff = 1;
             else     /* Potential multiunit UTF-16 code */
             {
                 rval = raw_wgetch(win);             /* get another UTF-16 unit from buffer*/
                 if ( (rval & 0xFC00) != 0xDC00)     /* mask check of second UTF-16 unit */
-                    continue;
-                buff.word[1]=rval;
-                n_buff = 4;
-                rval = ((int)(buff.word[0] & 0x3FF) << 10) | (rval & 0x3FF) | (int)0x10000; /* rval is the full unicode */
+                {
+                    unget_wch((wchar_t)rval);
+                    return ERR;
+                }                
+                n_buff = 1;
+                rval = (((int)(buff & 0x3FF) << 10) | (rval & 0x3FF)) + 0x10000; /* rval is the full unicode */
             }
         } while (!n_buff);
 #ifdef PDC_FORCE_UTF8
-        n_buff = PDC_wc_to_utf8(buff.byte, rval);  /* rval has the raw unicode codepoint */
+        n_buff = PDC_wc_to_utf8((char *)&buff, rval);  /* rval has the raw unicode codepoint */
 #endif
     }
-    size_t i;
-    rval = buff.byte[0] & 0xFF;
+#ifdef PDC_FORCE_UTF8
+    rval = buff & 0xFF;
+#endif
     n_buff--;
-    for (i = 0; i < n_buff; i++)
-        buff.byte[i] = buff.byte[i + 1];
+    buff = buff >> 8;
     return (rval);
 }
 
