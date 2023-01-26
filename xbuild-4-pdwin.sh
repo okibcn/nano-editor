@@ -167,24 +167,26 @@ sed -i's/--selected/selected=0/' src/browser.c
 # Solve mouse detection issue when using PDCursesMod advanced mouse mode
 # sed -i "/undef ENABLE_MOUSE/d"   src/definitions.h
 
-# Adding static PDCurses revision and patch level to nano version info.
-LAST_VERSION="$(wget -q https://api.github.com/repos/okibcn/nano-editor/releases/latest -O - | awk -F \" -v RS="," '/tag_name/ {print $(NF-1)}')" \
-  || echo "FIRST RELEASE!!!!"
+# BRANDING and VERSIONING
+LAST_FULLVERSION="$(wget -q https://api.github.com/repos/okibcn/nano-for-windows/releases/latest -O - | awk -F \" -v RS="," '/tag_name/ {print $(NF-1)}')" || echo "FIRST RELEASE!!!!"
+LAST_VERSION="$(echo $LAST_FULLVERSION | awk -F .  '{print $1"."$2}')"  # last version without the subbuild
 NANO_VERSION="$(git describe --tags 2>/dev/null | sed "s/.\{10\}$//")-$(git rev-list --count HEAD)"
-LAST_BASEVERSION="$(echo $LAST_VERSION | awk -F .  '{print $1"."$2}')"  # last version without the subbuild
-if [ "${NANO_VERSION}" == "${LAST_BASEVERSION}" ]; then
-  # This is a new Windows build based on the same nano build, probably because there is a new ncurses patch
-  SUBBUILD="$(echo $LAST_VERSION | awk -F .  '{print $3}')"
+NANO_DATE=$(TZ=UTC git show --quiet --date='format-local:%Y.%m.%d' --format="%cd")
+if [ "${NANO_VERSION}" == "${LAST_VERSION}" ]; then
+  # This is a new Windows build based on the same nano build, probably because there is a new curses patch
+  SUBBUILD="$(echo $LAST_FULLVERSION | awk -F .  '{print $3}')"
   ((SUBBUILD=SUBBUILD+1))
   NANO_VERSION="${NANO_VERSION}.${SUBBUILD}"
 fi
 cd PDCursesMod
 CURSES="$(wget -q https://api.github.com/repos/Bill-Gray/PDCursesMod/releases/latest -O - | awk -F \" -v RS="," '/tag_name/ {print $(NF-1)}')"
-CURSES="PDCursesMod ${CURSES} build $(git rev-list --count HEAD)"
+CURSES_DATE=$(TZ=UTC git show --quiet --date='format-local:%Y.%m.%d' --format="%cd")
+CURSES="PDCursesMod ${CURSES} build $(git rev-list --count HEAD), ${CURSES_DATE}"
 cd ..
 
+sed -i 's/ GNU nano from git,//' src/nano.c
 sed -i 's|Compiled options|Using '"${CURSES}"'\\n &|' src/nano.c
-sed -i '/SOMETHING = "REVISION/cSOMETHING = "REVISION \\"'"${NANO_VERSION}"' for Windows\\""' src/Makefile.am
+sed -i '/SOMETHING = "REVISION/cSOMETHING = "REVISION \\"GNU nano for Windows, '"${NANO_VERSION}"' 64 bits, '"${NANO_DATE}"'\\""' src/Makefile.am
 echo -e "GNU nano version Tag: ${NANO_VERSION}\nUsing $CURSES"
 
 
