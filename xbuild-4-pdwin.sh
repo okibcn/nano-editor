@@ -144,14 +144,20 @@ sed -i "/int attributes/ {s/int/chtype/}" src/definitions.h
 sed -i "/bool parse_combination/ {s/int/chtype/}" src/rcfile.c
 sed -i "/int attributes/ {s/int/chtype/}" src/rcfile.c
 
-# Desambiguation of BACKSPACE vs ^H, or ENTER vs ^M
+# Desambiguation of BACKSPACE vs ^H, or ENTER vs ^M and certain CTRL+key combos
 sed -i "/get_kbinput(midwin, VISIBLE)/a\
     \\\\tif (!((PDC_get_key_modifiers()) & (PDC_KEY_MODIFIER_SHIFT|PDC_KEY_MODIFIER_CONTROL|PDC_KEY_MODIFIER_ALT)) ) {\\n\
-    \\t\\tswitch (input) {\\n\
-		\\t\\t\\tcase 0x08:      input = KEY_BACKSPACE; break;\\n\
-		\\t\\t\\tcase 0x0d:      input = KEY_ENTER;\\n\
-		\\t\\t}\\n\
-	  \\t}"  src/nano.c
+    \\tswitch (input) {\\n\
+    \\t\\tcase 0x08:      input = KEY_BACKSPACE; break;\\n\
+    \\t\\tcase 0x0d:      input = KEY_ENTER;\\n\
+    \\t}\\n\
+    }\\n\
+    if (PDC_get_key_modifiers() & PDC_KEY_MODIFIER_CONTROL){\\n\
+    \\tswitch (input) {\\n\
+    \\t\\tcase '/':          input = 31; break;\\n\
+    \\t\\tcase SHIFT_DELETE: input = CONTROL_SHIFT_DELETE; break;\\n\
+    \\t}\\n\
+    }"  src/nano.c
 
 # Fix for width detection using PDCursesMod internal function
 sed -i 's|wcwidth(wc)|uc_width(wc, "UTF-8")|g'  src/chars.c
@@ -161,7 +167,10 @@ sed -i '/prototypes.h/a#include "uniwidth.h"'  src/chars.c
 sed -i '0,/#/s//#define wchar_t int\n&/'  src/definitions.h PDCursesMod/curses.h
 
 # Fix browser folder change
-sed -i's/--selected/selected=0/' src/browser.c
+sed -i 's/--selected/selected=0/' src/browser.c
+
+# Fix ALT+[NUMBER|LETTER] not working with PDCursesMod
+sed -i "s/char)keystring\[2])/&\+\(\(unsigned char)keystring\[2]>\='9' \? ALT_A-\(int)'a' \: ALT_0-\(int)'0')/" src/global.c
 
 
 # Solve mouse detection issue when using PDCursesMod advanced mouse mode

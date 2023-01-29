@@ -124,6 +124,22 @@ pdcdisp     _show_run_of_ansi_characters( const attr_t attr,
                            const int lineno, const int x, const chtype *srcp, const int len)
 
 
+
+ALT+KEY PARSING
+#################
+global.c void shortcut_init(void)     <<< sc stuff
+global.c  void add_to_sclist(int menus, const char *scstring, const int keycode,void (*function)(void), int toggle)
+global.c   int keycode_from_string(const char *keystring)  << getting the keycode from a string
+winio.c  int parse_kbinput(WINDOW *frame) << getting keycode from keyboard
+
+
+
+
+
+
+
+
+
 Windows Clipboard here?
 ########################
 cut copy_text() copy to linestruct *cutbuffer
