@@ -270,6 +270,13 @@ echo -e "\n\nPATCH: ALT+[NUMBER|LETTER] not working."
 sed -i "s/char)keystring\[2])/&\+\(\(unsigned char)keystring\[2]>\='9' \? ALT_A-\(int)'a' \: ALT_0-\(int)'0')/" src/global.c
 _diff
 
+# Fix Shifted metas SHIFT+ALT+[LETTER] not working with PDCursesMod
+echo -e "\n\nPATCH: Shifted metas SHIFT+ALT+[LETTER] not working."
+sed -i "/(escapes == 0)/a\
+  meta_key\=PDC_get_key_modifiers\() \& PDC_KEY_MODIFIER_ALT;" src/winio.c
+_diff
+
+
 # Solve mouse detection issue when using PDCursesMod advanced mouse mode
 # sed -i "/undef ENABLE_MOUSE/d"   src/definitions.h
 
