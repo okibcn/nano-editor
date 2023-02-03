@@ -174,9 +174,11 @@ _diff
 
 # Fix for unicode char width detection using GNUlib internal function
 echo -e "\n\nPATCH: unicode char width detection using GNUlib internal function."
-sed -i.bak 's|wcwidth(wc)|uc_width(wc, "UTF-8")|g'  src/chars.c
+sed -i.bak 's|wcwidth(wc)|uc_width(wc, "UTF-8")|g'  src/chars.c  src/winio.c
 sed -i '/prototypes.h/a#include "uniwidth.h"'  src/chars.c
 _diff
+
+
 
 # Fix pipe-in data from Windows console.
 echo -e "\n\nPATCH: Fix pipe in data in Windows console."
@@ -257,6 +259,7 @@ _diff
 echo -e "\n\nPATCH: fix for emojis input and output."
 wget -q https://github.com/okibcn/nano-editor/raw/my-github-sync/curses/pdcurses/getch.c
 wget -q https://github.com/okibcn/nano-editor/raw/my-github-sync/curses/wincon/pdcdisp.c
+wget -q https://github.com/okibcn/nano-editor/raw/my-github-sync/curses/wincon/pdcscrn.c
 wget -q https://github.com/okibcn/nano-editor/raw/my-github-sync/curses/wincon/pdckbd.c
 mv -f getch.c curses/pdcurses
 mv -f pdc*.c curses/wincon

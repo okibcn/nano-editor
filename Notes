@@ -18,6 +18,9 @@
 # How MS tried to solve the WC (UTF-16) to MB (UTF-8) problem: https://learn.microsoft.com/en-us/windows/win32/api/stringapiset/nf-stringapiset-multibytetowidechar
 
 
+# Modern WT API https://learn.microsoft.com/en-us/windows/console/console-virtual-terminal-sequences
+
+
 # gnulib has charwidth in ${gnulib_dir}/lib/uniwidth/width0.h
 /* Generated automatically by gen-uni-tables.c for Unicode 15.0.0.  */
 https://github.com/coreutils/gnulib/blob/master/lib/gen-uni-tables.c
@@ -129,15 +132,16 @@ ALT+KEY PARSING
 #################
 global.c void shortcut_init(void)     <<< sc stuff
 global.c  void add_to_sclist(int menus, const char *scstring, const int keycode,void (*function)(void), int toggle)
-global.c   int keycode_from_string(const char *keystring)  << getting the keycode from a string
-winio.c  int parse_kbinput(WINDOW *frame) << getting keycode from keyboard
+global.c   int keycode_from_string(const char *keystring)  << getting the keycode from a string   <<<<< These are the key functions for unknwon keys
+winio.c  int parse_kbinput(WINDOW *frame) << getting keycode from keyboard                        <<<<< These are the key functions for unknwon keys
 
 
 
-
-
-
-
+do(update)
+ PDC_Transform_line()
+  _new_packet()
+   extended_pair_content()  Get the fg,bg colors from pair
+   _show_run_of_ansi_characters() or _show_run_of_nonansi_characters()  (depending on color??????)
 
 
 Windows Clipboard here?

@@ -170,12 +170,12 @@ static void _show_run_of_ansi_characters( const attr_t attr,
 
 #ifdef PDC_WIDE
         chtype uc = ch & A_CHARTEXT;  //o//
-        if( uc != DUMMY_CHAR_NEXT_TO_FULLWIDTH){
-            if (uc & 0xFF0000){
+        if( uc < 0x110000){
+            if (uc & 0x1F0000){
                 buffer[n_out++] = (WCHAR)((uc - 0x10000) >> 10 | 0xD800); /* first UTF-16 unit */
                 buffer[n_out++] = (WCHAR)(uc & 0x3FF) | 0xDC00;   /* second UTF-16 unit */
             }else   
-                buffer[n_out++] = (WCHAR)( ch & A_CHARTEXT);
+                buffer[n_out++] = (WCHAR)uc;
         }
 #else
         buffer[n_out++] = (char)( ch & A_CHARTEXT);
@@ -228,9 +228,18 @@ static void _show_run_of_nonansi_characters( const attr_t attr,
 
         buffer[n_out].Attributes = mapped_attr;
 #ifdef PDC_WIDE
-            if( (ch & A_CHARTEXT) != DUMMY_CHAR_NEXT_TO_FULLWIDTH)
+        chtype uc = ch & A_CHARTEXT;  //o//
+        if( uc < 0x110000){
+            if (uc & 0x1F0000){
+                buffer[n_out++].Char.UnicodeChar = (WCHAR)((uc - 0x10000) >> 10 | 0xD800); /* first UTF-16 unit */
+                buffer[n_out].Attributes = mapped_attr;
+                buffer[n_out++].Char.UnicodeChar = (WCHAR)(uc & 0x3FF) | 0xDC00;   /* second UTF-16 unit */
+            }else   
+                buffer[n_out++].Char.UnicodeChar = (WCHAR)uc;
+        }
+#else
+        buffer[n_out++].Char.UnicodeChar = (WCHAR)( ch & A_CHARTEXT);
 #endif
-           buffer[n_out++].Char.UnicodeChar = (WCHAR)( ch & A_CHARTEXT);
     }
 
     bufPos.X = bufPos.Y = 0;
