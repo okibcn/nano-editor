@@ -57,7 +57,15 @@ static void _set_ansi_color(short f, short b, attr_t attr)
 
     p = esc + sprintf(esc, "\x1b[");
 
-    if (f != pdc_oldf)
+    bool set_transparent_bg = (b == 0 && b != pdc_oldb);
+    if (set_transparent_bg)
+    {
+        p += sprintf(p, "m\x1b[");
+        pdc_oldb = b;
+    }        
+    int initial_len = strlen(esc);
+
+    if (f != pdc_oldf || set_transparent_bg)
     {
         if (f < 8 && !pdc_color[f].mapped)
             p += sprintf(p, "%d", f + 30);
@@ -79,7 +87,7 @@ static void _set_ansi_color(short f, short b, attr_t attr)
 
     if (b != pdc_oldb)
     {
-        if (strlen(esc) > 2)
+        if (strlen(esc) > initial_len)
             p += sprintf(p, ";");
 
         if (b < 8 && !pdc_color[b].mapped)
@@ -100,9 +108,9 @@ static void _set_ansi_color(short f, short b, attr_t attr)
         pdc_oldb = b;
     }
 
-    if (italic != in_italic)
+    if (italic != in_italic || set_transparent_bg)
     {
-        if (strlen(esc) > 2)
+        if (strlen(esc) > initial_len )
             p += sprintf(p, ";");
 
         if (italic)
@@ -113,9 +121,9 @@ static void _set_ansi_color(short f, short b, attr_t attr)
         in_italic = italic;
     }
 
-    if (underline != pdc_oldu)
+    if (underline != pdc_oldu || set_transparent_bg)
     {
-        if (strlen(esc) > 2)
+        if (strlen(esc) > initial_len )
             p += sprintf(p, ";");
 
         if (underline)
@@ -240,6 +248,7 @@ static void _show_run_of_nonansi_characters( const attr_t attr,
 #else
         buffer[n_out++].Char.UnicodeChar = (WCHAR)( ch & A_CHARTEXT);
 #endif
+
     }
 
     bufPos.X = bufPos.Y = 0;
