@@ -132,16 +132,9 @@ ALT+KEY PARSING
 #################
 global.c void shortcut_init(void)     <<< sc stuff
 global.c  void add_to_sclist(int menus, const char *scstring, const int keycode,void (*function)(void), int toggle)
-global.c   int keycode_from_string(const char *keystring)  << getting the keycode from a string   <<<<< These are the key functions for unknwon keys
-winio.c  int parse_kbinput(WINDOW *frame) << getting keycode from keyboard                        <<<<< These are the key functions for unknwon keys
+global.c   int keycode_from_string(const char *keystring)  -- getting the keycode from a string    These are the key functions for unknwon keys
+winio.c  int parse_kbinput(WINDOW *frame)  -- getting keycode from keyboard                         These are the key functions for unknwon keys
 
-
-
-do(update)
- PDC_Transform_line()
-  _new_packet()
-   extended_pair_content()  Get the fg,bg colors from pair
-   _show_run_of_ansi_characters() or _show_run_of_nonansi_characters()  (depending on color??????)
 
 
 Windows Clipboard here?
@@ -151,6 +144,16 @@ cut paste_text() paste
 cut do_delete() normal or tiny
  cut zap_text(void)
 
-		fprintf(stderr, "tic..."); //o//
-		fprintf(stderr, "tac\n"); //o//
-fprintf(stderr, "\nParse_kbinput returns: %3x - %s\n", kbinput, keyname(kbinput)); //o//
+
+
+#### VT NOTES ##########################################################################
+
+pdcscrn 309: get screen size as part of initscr()
+# ESCAPE CODES
+'\0337\033[r\033[999;999H\033[6n\0338'   Get the screen size
+'\0337\033[999;999H\033[6n\0338'   Get the screen size
+tty returns '`e[58;169R'
+
+"\033[m" reset color attr
+
+pdckbd 84: Get key. returns -1 if no key.

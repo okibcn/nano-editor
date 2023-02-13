@@ -18,12 +18,12 @@
 build () {
     # cd ~/nano
     ARCH="${1:-x86_64}"
-    PDTERM="${2:-wincon}"    # PDCursesMod supports wincon, vt, wingui, sdl1, sdl2
+    PDTERM="${2:-vt}"    # PDCursesMod supports wincon, vt, wingui, sdl1, sdl2
     BUILD="$(gcc -dumpmachine)"
     TARGET="${ARCH}-w64-mingw32"
     OUTDIR="$(pwd)/pkg_${TARGET}"
 
-    export PDCURSES_SRCDIR="$(pwd)/PDCursesMod"
+    export PDCURSES_SRCDIR="$(pwd)/curses"
     export CFLAGS="-g3 -O0 -flto -fdebug-prefix-map=`pwd`=. -I${PDCURSES_SRCDIR} -DPDC_FORCE_UTF8 -DPDCDEBUG -DPDC_NCMOUSE"
     export LDFLAGS="-L${PDCURSES_SRCDIR}/${PDTERM} -static -static-libgcc ${PDCURSES_SRCDIR}/${PDTERM}/pdcurses.a"
     export NCURSESW_CFLAGS="-I${PDCURSES_SRCDIR} -DNCURSES_STATIC  -DENABLE_MOUSE"
