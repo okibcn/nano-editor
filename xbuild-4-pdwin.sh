@@ -8,7 +8,7 @@
 
 # Required packages:
 # sudo -E apt -qq update && sudo apt upgrade -y
-# sudo -E apt -qq install -y autoconf automake autopoint gcc mingw-w64 gettext git groff make pkg-config texinfo p7zip-full
+# sudo -E apt -qq install -y autoconf automake autopoint gcc mingw-w64 gdb-mingw-w64 gettext git groff make pkg-config texinfo p7zip-full
 
  ##########################
 ##                        ##
