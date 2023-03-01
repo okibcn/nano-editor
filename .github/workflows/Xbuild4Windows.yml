@@ -72,7 +72,7 @@ jobs:
 
     - name: "👋 Cancelling Actions"
       if:  env.CANCEL == 'true' 
-      uses: andymckay/cancel-action@0.2
+      uses: andymckay/cancel-action@0.3
 
     - name: "⏬ Install Toolchain OS Tools"
       run: |
